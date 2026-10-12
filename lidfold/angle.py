@@ -27,6 +27,9 @@ from .fold import GHOST_DEFAULT_SPAN
 from .odometry import Motion, PitchOdometry, to_gray
 from .scenemap import SceneMap
 
+FULL_ANGLE = 45.0         # real lid angle at the calibrated full stop (user-measured)
+MIN_ACTION_SPAN = 5.0     # the degree of action stays at least this far above full
+
 # Per-frame pull toward the edge-derived angle: firm at rest, gentle while
 # the lid moves fast (edge detection then lags odometry slightly).
 ANCHOR_GAIN, ANCHOR_GAIN_MOVING = 0.35, 0.12
@@ -104,6 +107,7 @@ class AngleReading:
     motion: Motion
     scene_hit: bool = False
     ghost: float = 0.0       # Ghost drive: degrees closed since rest / ghost span
+    lid_deg: float = 0.0     # estimated absolute lid angle, degrees
 
     def drive(self, effect: str) -> float:
         """Ghost follows the rotation since rest, as in Mac Duo; every other
@@ -132,10 +136,37 @@ class LidModel:
 
 
 class LidAngle:
-    def __init__(self, model: LidModel):
+    def __init__(self, model: LidModel, action_angle: float | None = None,
+                 full_angle: float = FULL_ANGLE):
         self.model = model
         self.odometry = PitchOdometry()
+        self.configure(action_angle, full_angle)
         self.reset()
+
+    # ------------------------------------------------- degree of action
+    # Absolute degrees are anchored at the calibrated full stop, whose real
+    # angle the user knows (~45 deg). That is where the estimate is most
+    # accurate (the base edge pins phi down there); above it, phi adds real
+    # degrees from odometry and the scene map.
+    def configure(self, action_angle: float | None, full_angle: float = FULL_ANGLE) -> None:
+        """Called from the render loop; plain float stores are atomic."""
+        self.full_angle = float(full_angle)
+        self.action_phi = None if action_angle is None else self.phi_at(action_angle)
+
+    def lid_degrees(self, phi: float) -> float:
+        return self.full_angle + (self.model.angles.phi_full - phi)
+
+    def phi_at(self, degrees: float) -> float:
+        """phi where the estimated lid angle equals `degrees` (kept >= 5 deg above full)."""
+        return min(self.model.angles.phi_full - MIN_ACTION_SPAN,
+                   self.model.angles.phi_full + self.full_angle - degrees)
+
+    @property
+    def ghost_tilt_span(self) -> float:
+        """Real degrees the ghost tilts over from start to maximum."""
+        if self.action_phi is None:
+            return self.model.angles.ghost_span
+        return self.model.angles.phi_full - self.action_phi
 
     def reset(self) -> None:
         self.phi = 0.0
@@ -184,14 +215,21 @@ class LidAngle:
             gain = ANCHOR_GAIN_MOVING if abs(motion.degrees) > 0.5 else ANCHOR_GAIN
             self.phi += gain * (anchor - self.phi)
         dark = min(1.0, base.dark_gated * 1.15)
-        closure = max(self.model.angles.closure(self.phi), dark)
+        phi_full = self.model.angles.phi_full
+        if self.action_phi is None:
+            closure = max(self.model.angles.closure(self.phi), dark)
+        else:
+            closure = max(min(1.0, max(0.0, (self.phi - self.action_phi) / (phi_full - self.action_phi))), dark)
         # Ghost follows Mac Duo: it starts the moment the lid leaves rest and
         # tilts by the real rotation since then (phi, in degrees; LidTracker
         # rebases on wherever the lid rests). It peaks at the calibrated full
         # stop, where the user wants the effect biggest (~45 deg), instead of
         # Mac Duo's 100-degree sweep.
         ghost = max(min(1.0, max(0.0, self.phi) / self.model.angles.ghost_span), dark)
-        return AngleReading(self.phi, closure, base, motion, scene_hit, ghost)
+        if self.action_phi is not None:
+            ghost = closure            # a set degree of action applies to every effect
+        return AngleReading(self.phi, closure, base, motion, scene_hit, ghost,
+                            self.lid_degrees(self.phi))
 
     def _opening(self, base, motion: Motion, dt: float, now: float) -> bool:
         """True while the lid is evidently heading back up with the base out of view."""

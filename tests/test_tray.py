@@ -50,3 +50,17 @@ def test_never_clear_means_infinite_timeout():
     from lidfold.fold import tracker_for
     assert tracker_for("duo", 0.0, 0.025).clear_after == math.inf
     assert tracker_for("duo", 2.0, 0.025).clear_after == 2.0
+
+
+def test_degree_of_action_menu(ctl):
+    from lidfold.tray import Tray
+    tray = Tray(ctl)
+    menu = next(i for i in tray.icon.menu.items if i.text.startswith("Starts at")).submenu
+    sixty = next(i for i in menu.items if i.text == "60 deg")
+    sixty(tray.icon)
+    assert ctl.settings.action_angle == 60.0 and "action" in ctl.take_changes()
+    assert Settings.load().action_angle == 60.0
+    ctl.settings.full_angle = 58.0                    # 60 is too close to a 58-deg full stop
+    assert not sixty.enabled
+    next(i for i in menu.items if i.text.startswith("Calibrated"))(tray.icon)
+    assert ctl.settings.action_angle is None

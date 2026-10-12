@@ -288,7 +288,7 @@ def annotate(frame: np.ndarray, r: AngleReading, extra: list[str]) -> np.ndarray
     _draw_boundary(view, b.boundary.astype(np.float32), (0, 255, 0) if b.present else (0, 0, 255))
     heat = cv2.applyColorMap((b.prob * 255).astype(np.uint8), cv2.COLORMAP_INFERNO)
     view[-WORK_H:, -WORK_W:] = heat
-    _text(view, [f"angle {r.phi:6.1f}  closure {r.closure:.3f}  ghost {r.ghost:.3f}  motion {r.motion.degrees:+.2f}"
+    _text(view, [f"lid ~{r.lid_deg:5.1f} deg  closed {r.phi:5.1f}  closure {r.closure:.3f}  ghost {r.ghost:.3f}"
                  f"  {'MAP' if r.scene_hit else ''}",
                  f"base {b.height:.3f} {'SEEN' if b.present else '-'}  score {b.score:5.2f}  dark {b.darkness:.2f}"]
           + extra)
@@ -300,7 +300,7 @@ def _tracker(settings: Settings) -> LidTracker:
 
 
 def debug(settings: Settings) -> None:
-    lid = LidAngle(load_model())
+    lid = LidAngle(load_model(), settings.action_angle, settings.full_angle)
     tracker = _tracker(settings)
     cap = open_camera(settings.camera, settings.camera_fps)
     try:
@@ -353,7 +353,7 @@ def record(settings: Settings, seconds: float) -> Path:
 
 def replay(path: Path, settings: Settings) -> Path:
     """Run the full estimator over a recording; write an annotated video and a CSV."""
-    lid = LidAngle(load_model())
+    lid = LidAngle(load_model(), settings.action_angle, settings.full_angle)
     tracker = _tracker(settings)
     cap = cv2.VideoCapture(str(path))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30

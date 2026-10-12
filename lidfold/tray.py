@@ -24,6 +24,7 @@ BLUR = [(0.0, "Off"), (0.35, "Soft"), (0.65, "Mac Duo default"), (0.9, "Strong")
 SHADOW = [(0.0, "Off"), (0.35, "Light"), (0.65, "Mac Duo default"), (0.9, "Deep")]
 CLEAR = [(1.0, "1 s"), (2.0, "2 s"), (3.0, "3 s"), (5.0, "5 s"), (0.0, "Never")]
 CAMERAS = range(4)
+ACTION = [100.0, 90.0, 80.0, 70.0, 65.0, 60.0, 55.0, 50.0]
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "lidfold"
@@ -76,6 +77,7 @@ class Controller:
         self.quit_requested = threading.Event()
         self.camera_idle = threading.Event()   # set by the render loop while it holds no camera
         self.busy: str | None = None        # label of a running tool
+        self.calibrated_start_deg: float | None = None   # set by the render loop
         self.status = "starting"
         self.on_change = lambda: None
         self.notify = lambda message, title="lidfold": None
@@ -121,6 +123,10 @@ class Controller:
     def set_clear_after(self, seconds: float) -> None:
         self.settings.clear_after = seconds
         self._change("tracker")
+
+    def set_action_angle(self, degrees: float | None) -> None:
+        self.settings.action_angle = degrees
+        self._change("action")
 
     def set_camera(self, index: int) -> None:
         self.settings.camera = index
@@ -197,6 +203,7 @@ class Tray:
             pystray.MenuItem("Effect", radio([(k, l) for k, l in EFFECTS], lambda: s.effect, ctl.set_effect)),
             pystray.MenuItem("Blur", radio(BLUR, lambda: s.blur, ctl.set_blur)),
             pystray.MenuItem("Shading", radio(SHADOW, lambda: s.shadow, ctl.set_shadow)),
+            pystray.MenuItem("Starts at (degree of action)", self._action_menu()),
             pystray.MenuItem("Clear when the lid is still",
                              radio(CLEAR, lambda: s.clear_after, ctl.set_clear_after)),
             pystray.MenuItem("Camera", radio([(i, f"Camera {i}") for i in CAMERAS],
@@ -215,6 +222,28 @@ class Tray:
             pystray.MenuItem("Open settings folder", lambda icon, item: os.startfile(data_dir())),
             pystray.MenuItem("Quit", lambda icon, item: ctl.quit()),
         )
+
+    def _action_menu(self) -> pystray.Menu:
+        ctl, s = self.ctl, self.ctl.settings
+
+        def calibrated(item) -> str:
+            deg = ctl.calibrated_start_deg
+            return "Calibrated start" + (f" (~{deg:.0f} deg)" if deg is not None else "")
+
+        def act(value):
+            return lambda icon, item: ctl.set_action_angle(value)
+
+        def is_current(value):
+            return lambda item: s.action_angle == value
+
+        def allowed(value):
+            # The effect needs room to build before its maximum at the full stop.
+            return lambda item: value >= s.full_angle + 5
+
+        return pystray.Menu(
+            pystray.MenuItem(calibrated, act(None), checked=is_current(None), radio=True),
+            *(pystray.MenuItem(f"{deg:.0f} deg", act(deg), checked=is_current(deg), radio=True,
+                               enabled=allowed(deg)) for deg in ACTION))
 
     def start(self) -> None:
         threading.Thread(target=self.icon.run, daemon=True, name="tray").start()

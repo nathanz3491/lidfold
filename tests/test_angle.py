@@ -127,3 +127,23 @@ def test_ghost_is_live_from_rest_and_peaks_at_the_full_stop(lid):
 def test_ghost_does_not_go_negative_when_opened_past_normal(lid):
     r = step(lid, deg=-1.0, n=10)
     assert r.ghost == 0
+
+
+def test_degree_of_action_starts_the_effect_at_that_estimated_angle(lid):
+    # CAL's full stop is phi 80 and is taken as 45 deg real, so phi 0 is 125 deg.
+    assert lid.lid_degrees(80.0) == pytest.approx(45.0)
+    lid.configure(70.0)                               # start when the lid reaches ~70 deg
+    assert lid.action_phi == pytest.approx(55.0)
+    r = step(lid, deg=1.0, n=54)                      # 71 deg: not yet
+    assert r.lid_deg == pytest.approx(71.0) and r.closure == 0
+    r = step(lid, deg=1.0, n=13)                      # 58 deg: about halfway to the full stop
+    assert 0.4 < r.closure < 0.6
+    assert r.drive("ghost") == r.closure              # applies to every effect
+    assert lid.ghost_tilt_span == pytest.approx(25.0)
+
+
+def test_degree_of_action_keeps_room_above_the_full_stop(lid):
+    lid.configure(46.0)                               # 1 deg above full: clamped
+    assert lid.action_phi == pytest.approx(75.0)
+    lid.configure(None)
+    assert lid.action_phi is None

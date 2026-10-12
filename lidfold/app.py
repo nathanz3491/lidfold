@@ -15,6 +15,7 @@ from .tray import Controller, Tray
 
 STALE_READING = 1.0   # s without a camera reading -> clear the effect
 RESUME_GAP = 2.0      # loop stalled this long -> assume sleep/resume, reset
+STATUS_EVERY = 0.5    # s between live lid-angle updates in the tray tooltip
 
 
 def _single_instance() -> object | None:
@@ -37,11 +38,12 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
     overlay = Overlay(settings.effect, settings.blur, settings.shadow)
     print("lidfold running - close the lid slowly. Ctrl+C or the tray's Quit to exit.")
 
-    model, camera = None, None
+    model, camera, lid = None, None, None
     tracker = tracker_for(settings.effect, settings.clear_after, settings.still_epsilon)
     animator = FoldAnimator()
     changes = {"model"}
     last_stamp, last_loop, target, clear = 0.0, time.monotonic(), 0.0, False
+    last_status = 0.0
     try:
         while not ctl.quit_requested.is_set():
             changes |= ctl.take_changes()
@@ -61,14 +63,19 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
                 camera = None
             if want_camera and camera is None:
                 ctl.camera_idle.clear()
-                camera = CameraWorker(settings.camera, settings.camera_fps, LidAngle(model))
+                lid = LidAngle(model, settings.action_angle, settings.full_angle)
+                ctl.calibrated_start_deg = lid.lid_degrees(model.angles.phi_start)
+                camera = CameraWorker(settings.camera, settings.camera_fps, lid)
                 camera.start()
+                changes.add("tracker")
+            if "action" in changes and lid is not None:
+                lid.configure(settings.action_angle, settings.full_angle)
                 changes.add("tracker")
             if camera is None:
                 ctl.camera_idle.set()
             if "tracker" in changes and model is not None:
                 tracker = tracker_for(settings.effect, settings.clear_after, settings.still_epsilon)
-                animator = FoldAnimator(tilt_span=model.angles.ghost_span)
+                animator = FoldAnimator(tilt_span=lid.ghost_tilt_span if lid else model.angles.ghost_span)
                 target, clear = 0.0, False
             changes = set()
 
@@ -94,7 +101,9 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
             elif stamp != last_stamp:
                 last_stamp = stamp
                 target, clear = tracker.update(reading.drive(settings.effect), stamp)
-                ctl.set_status("on")
+                if now - last_status >= STATUS_EVERY:
+                    ctl.set_status(f"on - lid ~{reading.lid_deg:.0f} deg")
+                    last_status = now
                 if verbose:
                     print(f"angle {reading.phi:6.1f} base {reading.base.height:.3f} "
                           f"dark {reading.base.darkness:.2f} "

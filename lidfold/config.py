@@ -25,6 +25,10 @@ class Settings:
     blur: float = 0.65             # Mac Duo defaults
     shadow: float = 0.65
     locked: bool = False           # tray lock: effect and camera off
+    # Degree of action: estimated lid angle (deg) at which the effect starts.
+    # None = calibrated start stop (ghost: from rest).
+    action_angle: float | None = None
+    full_angle: float = 45.0       # real lid angle at the calibrated full stop
 
     @classmethod
     def load(cls) -> "Settings":

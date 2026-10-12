@@ -67,10 +67,22 @@ lidfold debug       # optional: see what the camera detects
 lidfold run         # the effect (the installed app starts this at sign-in)
 ```
 
+**Degree of action.** The estimated lid angle at which the effect starts,
+in real degrees. Absolute angles are anchored at your calibrated full stop,
+taken as 45° (`full_angle` in `settings.json`; change it if your full stop
+is at a different angle). The estimate is most accurate there, because the
+base edge pins it down; above it, motion tracking adds real degrees. The
+tray tooltip shows the live estimate ("lid ~72 deg"), so you can pick a
+value. Set it with the tray's **Starts at** menu, `--action-angle 70`, or
+`action_angle` in `settings.json`. It applies to every effect, which then
+peaks at the full stop. Unset (Calibrated), duo starts at the calibrated
+start stop and ghost starts from rest.
+
 **System tray.** `run` puts a laptop icon in the tray: blue while active,
 grey with a padlock while locked. Left-click toggles the lock. The menu has:
 - **Locked**: effect off *and* camera released, so the webcam light goes
   off. The lock state is remembered.
+- **Starts at**: the degree of action (Calibrated, or 100°…50°).
 - **Effect**: Duo, Ghost, Flat or Iris. **Blur** and **Shading**: Off, a
   lighter setting, Mac Duo default, or a stronger setting. **Clear when the
   lid is still**: 1 / 2 / 3 / 5 s, or Never. **Camera**: 0–3. All changes

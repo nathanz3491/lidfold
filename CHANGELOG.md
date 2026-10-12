@@ -5,6 +5,12 @@ All notable changes to this project are documented here, following
 
 ## [Unreleased]
 
+### Added
+- Degree of action: the estimated lid angle at which the effect starts. It
+  is anchored at the calibrated full stop (45°) and applies to every effect.
+  Set it from the tray's "Starts at" menu, `--action-angle`, or settings.
+  The tray tooltip shows the live estimated lid angle.
+
 ## [0.1.0] - 2026-10-12
 
 ### Added
