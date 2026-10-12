@@ -1,4 +1,4 @@
-"""lidfold command line: run | calibrate | retrain | debug | record | replay | simulate | install | uninstall."""
+"""lidfold command line: run | quit | calibrate | retrain | debug | record | replay | simulate | install | uninstall."""
 from __future__ import annotations
 
 import argparse
@@ -27,6 +27,7 @@ def main() -> None:
     inst = sub.add_parser("install", help="install as a Windows app: own folder, CLI on PATH, "
                                           "Start Menu, start at sign-in")
     inst.add_argument("--no-start", action="store_true", help="do not launch it afterwards")
+    sub.add_parser("quit", help="ask a running lidfold to exit")
     uninst = sub.add_parser("uninstall", help="remove the installed app, shortcut, PATH entry, autostart")
     uninst.add_argument("--purge", action="store_true", help="also delete calibration and settings")
     sim = sub.add_parser("simulate", help="preview the effect with a scripted lid")
@@ -59,6 +60,9 @@ def main() -> None:
     elif args.command == "install":
         from .install import install
         install(start=not args.no_start)
+    elif args.command == "quit":
+        from .install import stop_running
+        print("lidfold stopped" if stop_running() else "lidfold is not running")
     elif args.command == "uninstall":
         from .install import uninstall
         uninstall(purge=args.purge)

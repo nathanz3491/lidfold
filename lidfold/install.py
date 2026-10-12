@@ -19,9 +19,11 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import winreg
 from pathlib import Path
 
+from .app import QUIT_EVENT
 from .icon import write_ico
 from .tray import RUN_KEY, RUN_NAME
 
@@ -110,9 +112,45 @@ def _already_running() -> bool:
     return False
 
 
+def stop_running(timeout: float = 8.0) -> bool:
+    """Ask a running lidfold to quit (named event), wait for it. Returns
+    True if one was running. A copy too old to listen is ended by process,
+    limited to processes started from this app's own folder."""
+    if not _already_running():
+        return False
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenEventW.restype = ctypes.c_void_p
+    event = kernel32.OpenEventW(0x0002, False, QUIT_EVENT)          # EVENT_MODIFY_STATE
+    if event:
+        kernel32.SetEvent(ctypes.c_void_p(event))
+        kernel32.CloseHandle(ctypes.c_void_p(event))
+    deadline = time.monotonic() + timeout
+    while _already_running() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if _already_running():
+        # A venv's pythonw.exe is only a redirector; the real interpreter
+        # runs from the base Python folder. All three carry the app's venv
+        # path and the `run` command on their command line, so match that
+        # (and only Python/lidfold executables: shells running this very
+        # query also contain the path).
+        venv = str(VENV).replace("'", "''")
+        script = ("Get-CimInstance Win32_Process | Where-Object { "
+                  "$_.Name -in 'lidfoldw.exe','lidfold.exe','pythonw.exe','python.exe' -and "
+                  "$_.CommandLine -like '*" + venv + "*' -and $_.CommandLine -match ' run\\s*$' "
+                  "} | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }")
+        subprocess.run(["powershell", "-NoProfile", "-Command", script], check=False, capture_output=True)
+        time.sleep(1.0)
+    return True
+
+
 # ------------------------------------------------------------- commands
 def install(start: bool = True) -> None:
     source = _source_root()
+    # The running app holds its launcher and files open: stop it before
+    # pip replaces them, and start the new version afterwards.
+    was_running = stop_running()
+    if was_running:
+        print("stopped the running lidfold to update it")
     python = VENV / "Scripts" / "python.exe"
     if not python.exists():
         print(f"creating {VENV}")
@@ -137,10 +175,10 @@ def install(start: bool = True) -> None:
     print(f"Start Menu shortcut: {SHORTCUT}")
     print("starts automatically when you sign in")
 
-    if start:
+    if start or was_running:
         if _already_running():
-            print("lidfold is already running: Quit it from the tray, then start "
-                  "lidfold from the Start Menu to switch to the installed copy.")
+            print("another lidfold (e.g. from a development checkout) is running; "
+                  "quit it to use the installed copy")
         else:
             subprocess.Popen([str(gui), "run"], creationflags=0x00000008,   # DETACHED_PROCESS
                              cwd=str(APP_DIR), close_fds=True)
@@ -154,10 +192,8 @@ def uninstall(purge: bool = False) -> None:
     value, kind = _user_path()
     if without_entry(value, str(BIN)) != value:
         _set_user_path(without_entry(value, str(BIN)), kind)
-    if _already_running():
-        print("lidfold is running: Quit it from the tray first, then run uninstall again "
-              "to remove the program files.")
-    elif APP_DIR.exists():
+    stop_running()
+    if APP_DIR.exists():
         shutil.rmtree(APP_DIR, ignore_errors=True)
     if purge:
         from .config import data_dir

@@ -10,6 +10,9 @@ All notable changes to this project are documented here, following
   is anchored at the calibrated full stop (45°) and applies to every effect.
   Set it from the tray's "Starts at" menu, `--action-angle`, or settings.
   The tray tooltip shows the live estimated lid angle.
+- `lidfold quit`. `lidfold install` now stops a running copy (named quit
+  event, with a narrowly matched process fallback), updates it and restarts
+  it; `uninstall` stops it too.
 
 ## [0.1.0] - 2026-10-12
 

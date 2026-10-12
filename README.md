@@ -50,9 +50,12 @@ python -m venv .venv
 - Calibration and settings live in `%APPDATA%\lidfold`, shared with this
   checkout.
 
+Run `lidfold install` again to update: it asks the running lidfold to quit
+(`lidfold quit` does the same), replaces the program files, and starts the
+new version.
+
 `lidfold uninstall` removes the program folder, shortcut, PATH entry and
-autostart, but keeps your calibration. `--purge` deletes that too. Quit
-lidfold from the tray before uninstalling.
+autostart, but keeps your calibration. `--purge` deletes that too.
 
 ## Development setup
 

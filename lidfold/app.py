@@ -16,6 +16,7 @@ from .tray import Controller, Tray
 STALE_READING = 1.0   # s without a camera reading -> clear the effect
 RESUME_GAP = 2.0      # loop stalled this long -> assume sleep/resume, reset
 STATUS_EVERY = 0.5    # s between live lid-angle updates in the tray tooltip
+QUIT_EVENT = r"Local\lidfold-quit"   # set by `lidfold install` to stop a running copy
 
 
 def _single_instance() -> object | None:
@@ -25,6 +26,13 @@ def _single_instance() -> object | None:
     if ctypes.get_last_error() == 183:          # ERROR_ALREADY_EXISTS
         return None
     return handle
+
+
+def _quit_event() -> tuple[object, object]:
+    """Named event another process (the installer) can set to make us quit."""
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateEventW.restype = ctypes.c_void_p
+    return kernel32, kernel32.CreateEventW(None, True, False, QUIT_EVENT)
 
 
 def run(settings: Settings, verbose: bool = False, tray: bool = True,
@@ -38,6 +46,7 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
     overlay = Overlay(settings.effect, settings.blur, settings.shadow)
     print("lidfold running - close the lid slowly. Ctrl+C or the tray's Quit to exit.")
 
+    kernel32, quit_event = _quit_event()
     model, camera, lid = None, None, None
     tracker = tracker_for(settings.effect, settings.clear_after, settings.still_epsilon)
     animator = FoldAnimator()
@@ -46,6 +55,8 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
     last_status = 0.0
     try:
         while not ctl.quit_requested.is_set():
+            if quit_event and kernel32.WaitForSingleObject(ctypes.c_void_p(quit_event), 0) == 0:
+                break
             changes |= ctl.take_changes()
             if "style" in changes:
                 overlay.set_style(settings.effect, settings.blur, settings.shadow)
