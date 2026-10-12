@@ -1,0 +1,17 @@
+colorama==0.4.6
+comtypes==1.4.17
+dxcam==0.3.0
+glcontext==3.1.0
+glfw==2.10.2
+iniconfig==2.3.1
+moderngl==5.13.0
+numpy==2.5.4
+opencv-python==5.0.0.93
+packaging==26.3
+pillow==12.3.0
+pluggy==1.6.0
+Pygments==2.21.0
+pystray==0.19.5
+pytest==9.1.1
+pywin32==312
+six==1.17.0

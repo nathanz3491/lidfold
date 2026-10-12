@@ -1,0 +1,9 @@
+numpy
+opencv-python
+dxcam
+glfw
+moderngl
+pywin32
+pystray
+pillow
+pytest
