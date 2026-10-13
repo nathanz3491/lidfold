@@ -287,6 +287,16 @@ live on this laptop, as a share of one core:
 
 15 fps is the sweet spot. Faster lid motion favours higher rates.
 
+**Memory.** By default NumPy's OpenBLAS reserves a buffer per CPU thread
+as soon as NumPy is imported: about 480 MB on this 16-thread laptop, in
+every lidfold process. lidfold's matrices are tiny, so `lidfold/__init__.py`
+pins it to one thread before NumPy loads. Measured on the installed app,
+this cut the effect + UI from 1.8 GB to 610 MB private. The UI process also
+never imports the tracking stack.
+
+The UI's WebView2 needs its GPU process: with `--disable-gpu` the
+transparent panel renders blank.
+
 **Why `cv2.setNumThreads(1)`?** On images this small, OpenCV's thread pool
 spun most of the time. Pinning it to one thread cut CPU use about 4×.
 

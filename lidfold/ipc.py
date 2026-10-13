@@ -24,7 +24,7 @@ import time
 from multiprocessing.connection import Client, Listener
 
 from . import __version__
-from .camera import FPS_CHOICES
+from .config import FPS_CHOICES
 
 PIPE_ENV, KEY_ENV = "LIDFOLD_UI_PIPE", "LIDFOLD_UI_KEY"
 PUSH_EVERY = 0.2

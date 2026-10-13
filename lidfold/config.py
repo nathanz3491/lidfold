@@ -14,6 +14,9 @@ def data_dir() -> Path:
     return path
 
 
+FPS_CHOICES = (10, 15, 20, 30)   # camera analysis rates offered in the UI
+
+
 @dataclass
 class Settings:
     camera: int = 0

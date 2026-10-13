@@ -10,9 +10,6 @@ import numpy as np
 from .angle import AngleReading, LidAngle
 
 
-FPS_CHOICES = (10, 15, 20, 30)
-
-
 class FrameGate:
     """Decimates a camera stream to `target` frames per second.
 

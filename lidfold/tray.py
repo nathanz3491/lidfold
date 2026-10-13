@@ -16,8 +16,7 @@ from pathlib import Path
 
 import pystray
 
-from .camera import FPS_CHOICES
-from .config import Settings, data_dir
+from .config import FPS_CHOICES, Settings, data_dir
 from .icon import tray_icon
 
 EFFECTS = [("duo", "Duo"), ("ghost", "Ghost"), ("flat", "Flat"), ("iris", "Iris")]

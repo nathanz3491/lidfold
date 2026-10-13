@@ -5,6 +5,12 @@ All notable changes to this project are documented here, following
 
 ## [Unreleased]
 
+### Fixed
+- Memory: NumPy's OpenBLAS reserved ~480 MB per process (a buffer per CPU
+  thread). It is now pinned to one thread, and the UI process no longer
+  imports the tracking stack. Effect + UI went from 1.8 GB to 610 MB
+  private.
+
 ### Added
 - macOS-style UI:
   - a popover panel on tray left-click: on/off switch, live status, effect
