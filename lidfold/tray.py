@@ -94,6 +94,8 @@ class Controller:
 
     def request_panel(self) -> None:
         """Tray left-click: open the popover; without the UI, toggle the lock."""
+        from . import log as logs
+        logs.get("tray").info("tray click (ui %s)", "attached" if self.ui is not None else "missing")
         if self.ui is None or not self.ui.show_panel():
             self.toggle_lock()
 

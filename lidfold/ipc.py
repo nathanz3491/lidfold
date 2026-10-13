@@ -24,9 +24,12 @@ import time
 from multiprocessing.connection import Client, Listener
 
 from . import __version__
+from . import log as logs
 from .config import FPS_CHOICES
 
-PIPE_ENV, KEY_ENV = "LIDFOLD_UI_PIPE", "LIDFOLD_UI_KEY"
+log = logs.get("bridge")
+
+PIPE_ENV, KEY_ENV, APP_PID_ENV = "LIDFOLD_UI_PIPE", "LIDFOLD_UI_KEY", "LIDFOLD_APP_PID"
 PUSH_EVERY = 0.2
 CREATE_NO_WINDOW = 0x08000000
 HOTKEY_LABEL = "Ctrl+Alt+Shift+F"
@@ -69,9 +72,11 @@ class UiBridge:
             self._spawn()
 
     def _spawn(self) -> None:
-        env = dict(os.environ, **{PIPE_ENV: self.address, KEY_ENV: self.key.hex()})
+        env = dict(os.environ, **{PIPE_ENV: self.address, KEY_ENV: self.key.hex(),
+                                  APP_PID_ENV: str(os.getpid())})
         self.proc = subprocess.Popen([sys.executable, "-m", "lidfold", "ui"], env=env,
                                      creationflags=CREATE_NO_WINDOW)
+        log.info("spawned ui process %s (%s)", self.proc.pid, sys.executable)
 
     def stop(self) -> None:
         self._stop.set()
@@ -115,8 +120,10 @@ class UiBridge:
                 continue
             with self._send_lock:
                 self._conn = conn
+            log.info("ui connected")
             self._last_state = None
             self._read(conn)
+            log.warning("ui disconnected")
             with self._send_lock:
                 if self._conn is conn:
                     self._conn = None
@@ -135,6 +142,7 @@ class UiBridge:
             try:
                 self.handle(message)
             except Exception as exc:       # never let a bad message kill the bridge
+                log.warning("rejected ui request %r: %s", message, exc)
                 self._send({"event": "toast", "title": "lidfold", "body": f"Ignored request: {exc}",
                             "kind": "warning"})
 
@@ -164,6 +172,7 @@ class UiBridge:
         cmd = message.get("cmd")
         if cmd == "hello":
             self.ui_pid = int(message.get("pid") or 0) or None
+            log.info("ui ready (pid %s)", self.ui_pid)
             self._last_state = None
             if self.welcome_pending:
                 self.welcome_pending = False
@@ -210,11 +219,14 @@ class UiBridge:
     # -------------------------------------------------------------- events
     def show_panel(self) -> bool:
         if not self.connected:
+            log.warning("panel requested but the ui is not connected")
             return False
         # The tray click gave this process the foreground right; pass it on
         # so the panel can take focus (and close itself when it loses it).
-        ctypes.windll.user32.AllowSetForegroundWindow(self.ui_pid or -1)
-        return self._send({"event": "show_panel"})
+        allowed = ctypes.windll.user32.AllowSetForegroundWindow(self.ui_pid or -1)
+        sent = self._send({"event": "show_panel"})
+        log.info("panel requested: sent=%s foreground-allowed=%s ui_pid=%s", sent, bool(allowed), self.ui_pid)
+        return sent
 
     def hud(self, kind: str, title: str | None = None, body: str | None = None) -> bool:
         return self._send({"event": "hud", "kind": kind, "title": title, "body": body})

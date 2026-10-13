@@ -6,6 +6,16 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- Clicking the tray icon did nothing. The UI froze through several
+  blocking paths: page updates waiting on unloaded pages, styling inside
+  pywebview's load sequence, pywin32 holding the GIL in `SetWindowLong`,
+  and raw `ShowWindow` on pywebview's hidden forms. Transparent windows
+  also ignored `hidden` and appeared as grey boxes. Now clicks are queued
+  and non-blocking, window calls use ctypes, and windows are opaque. Early
+  clicks open the panel once it is ready. Verified with 5 back-to-back
+  end-to-end runs (panel, HUD, banner, hidden at rest).
+- The UI exits with its app (orphaned UIs could linger), both processes log
+  to `lidfold.log`, and the test suite uses its own data folder.
 - Memory: NumPy's OpenBLAS reserved ~480 MB per process (a buffer per CPU
   thread). It is now pinned to one thread, and the UI process no longer
   imports the tracking stack. Effect + UI went from 1.8 GB to 610 MB

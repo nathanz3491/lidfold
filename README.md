@@ -122,8 +122,23 @@ How the UI is built:
   random key. Every request from the UI is validated before it changes
   anything.
 - All windows are created hidden at startup, so the panel opens instantly.
-- The surfaces are nearly opaque: DWM's acrylic tint came out light even in
-  dark mode for these windows, so the look doesn't rely on it.
+- Lessons from making the tray click reliable (each one froze the UI or
+  left windows misbehaving):
+  - The pipe reader never blocks. Page updates are queued until a page
+    loads, then run on short-lived threads.
+  - Window operations go through pywebview's own API (raw `ShowWindow` left
+    the hidden forms invisible), on one ordered worker thread.
+  - pywebview event handlers only queue work: styling a window inside the
+    `loaded` handler deadlocked pywebview's own load sequence.
+  - Window calls use `ctypes`, which releases the GIL. pywin32's
+    `SetWindowLong` holds it while waiting on the window thread, and that
+    froze the whole process.
+  - Windows are not transparent: pywebview ignores `hidden=True` for
+    transparent windows, so they popped up as empty grey boxes. Each window
+    background matches its surface colour instead.
+  - The UI exits with its app, by watching the app's process handle, so a
+    stuck UI can't linger as an orphan.
+  - Both processes log to `%APPDATA%\lidfold\lidfold.log`.
 
 **Calibration** (one slow sweep, then click-to-label):
 

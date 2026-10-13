@@ -1,10 +1,10 @@
 /* lidfold design system: macOS-style panels on Windows 11.
-   DWM supplies rounded corners, a hairline edge and a backdrop. The
-   surfaces here are nearly opaque: for these frameless WebView2 windows
-   DWM's acrylic tint came out light even in dark mode, so the look must
-   not depend on it. Surfaces are full-bleed, because a CSS radius larger
-   than DWM's 8 px rounding left light slivers in the corners. Follows the
-   system light/dark setting. */
+   DWM supplies rounded corners and a hairline edge. The windows are not
+   transparent (pywebview ignores hidden=True for transparent windows), so
+   each window's background is the surface colour (ui.surface_color), and
+   content fades in over it. Surfaces are full-bleed, because a CSS radius
+   larger than DWM's 8 px rounding left light slivers in the corners.
+   Follows the system light/dark setting. */
 
 :root {
   color-scheme: light dark;
