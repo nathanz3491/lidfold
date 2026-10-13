@@ -326,12 +326,13 @@ function update(s) {
 // Size the window to the content. #root is height:auto (not the window's
 // 100%), so this measures the content itself; measuring the window-filling
 // element fed the window's own height back and grew it 2 px per update.
+// Measured synchronously (the call forces layout): a hidden window gets no
+// animation frames, so a requestAnimationFrame measure only ran after the
+// panel was shown, and the first open jumped from the old height.
 let lastFit = 0;
 function fit() {
-  requestAnimationFrame(() => {
-    const h = Math.ceil($("#root").getBoundingClientRect().height);
-    if (api && h !== lastFit) { lastFit = h; api.fit(h); }
-  });
+  const h = Math.ceil($("#root").getBoundingClientRect().height);
+  if (api && h !== lastFit) { lastFit = h; api.fit(h); }
 }
 
 function appear(s) {

@@ -6,6 +6,10 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- The panel's first open showed it at an old height, then it jumped to fit
+  (560 to 878 px with 20 effects). It measured its content on the next
+  animation frame, and a hidden window gets none. It now measures at once,
+  so it opens at the right size.
 - After a forced stop or crash, tray clicks could do nothing until restart.
   The killed UI's WebView2 browser process stayed alive, holding the
   profile folder. A new UI on that folder attached to the orphan, and its

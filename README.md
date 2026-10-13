@@ -150,6 +150,9 @@ How the UI is built:
     background matches its surface colour instead.
   - `easy_drag` is off: pywebview lets you drag a frameless window from any
     point by default, so dragging a slider moved the panel instead.
+  - The panel measures its content synchronously, not in
+    `requestAnimationFrame`: hidden windows get no animation frames, so the
+    size arrived only after the panel was shown.
   - Pages are served from a free port, not pywebview's fixed 42001. Two
     processes can both bind 42001 on Windows, and the panel then loaded
     whichever process's pages answered, such as an old install's.
