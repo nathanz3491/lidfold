@@ -53,6 +53,10 @@ All notable changes to this project are documented here, following
   private.
 
 ### Added
+- MIT license (`LICENSE`), and `THIRD_PARTY_NOTICES.md` with Mac Duo's MIT
+  notice for the ported Duo and Ghost shaders, fold curves and tracking
+  design. The README credits said the shaders were independent; that was
+  out of date.
 - Twelve more effects, for 20 in five rows of the panel (also in the tray
   and `--effect`). Most follow Apple's own transitions:
   - **Cube**: the Mac's user-switching cube;

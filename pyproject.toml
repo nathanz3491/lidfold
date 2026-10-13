@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]   # SPDX `license` (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "lidfold"
 version = "0.1.0"
 description = "Camera-driven fold-away desktop effect for Windows laptops when the lid closes"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 dependencies = ["numpy", "opencv-python", "dxcam", "glfw", "moderngl", "pywin32", "pystray", "pillow",
                 "pywebview"]
 

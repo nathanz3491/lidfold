@@ -422,7 +422,13 @@ spun most of the time. Pinning it to one thread cut CPU use about 4×.
 
 ## Credits
 
-The fold-tracking design (rebasing on the resting angle, clearing when the
-lid is held still, timed ease-out) follows
-[Mac Duo](https://github.com/DhananjayBhosale/MacDuo) by Dhananjay Bhosale
-(MIT). The shaders here are independent GLSL implementations.
+The Duo and Ghost shaders, the fold curves, and the tracking design are
+ports of [Mac Duo](https://github.com/DhananjayBhosale/MacDuo) by Dhananjay
+Bhosale (MIT). That design rebases on the resting angle, clears when the lid
+is held still, and eases out on a timer. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The other effects and the
+webcam lid tracking are lidfold's own.
+
+## License
+
+[MIT](LICENSE).
