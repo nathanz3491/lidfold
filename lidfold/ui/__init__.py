@@ -524,10 +524,9 @@ def web_profile() -> Path:
 
     A persistent profile, because private_mode builds a temp profile and
     deletes old ones at startup, which kept the GUI thread busy for many
-    seconds. But a persistent profile caches pages: after a change, a stale
-    panel.html (with an old resize bug) was served. Keying the folder on the
-    files' contents means any change gets a fresh profile; old ones are
-    removed in the background."""
+    seconds. A persistent profile caches pages, so keying the folder on the
+    files' contents gives any change a fresh profile; old ones are removed
+    in the background."""
     import hashlib
     import shutil
     from ..config import data_dir
@@ -545,9 +544,24 @@ def web_profile() -> Path:
     return current
 
 
+def free_port() -> int:
+    """A free localhost port for pywebview's page server.
+
+    Outside private mode pywebview serves every app on the fixed port 42001.
+    Windows lets a second server bind it too, and the pages then come from
+    whichever process owns it: after an update the panel showed the old
+    install's markup, and any other pywebview app could serve pages that
+    reach this UI's API."""
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def main() -> None:
     log.info("ui starting")
     watch_app()
     ui = Ui()
     ui.create()
-    webview.start(ui.started, private_mode=False, storage_path=str(web_profile()))
+    webview.start(ui.started, private_mode=False, storage_path=str(web_profile()),
+                  http_port=free_port())

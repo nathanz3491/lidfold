@@ -138,6 +138,9 @@ How the UI is built:
     background matches its surface colour instead.
   - `easy_drag` is off: pywebview lets you drag a frameless window from any
     point by default, so dragging a slider moved the panel instead.
+  - Pages are served from a free port, not pywebview's fixed 42001. Two
+    processes can both bind 42001 on Windows, and the panel then loaded
+    whichever process's pages answered, such as an old install's.
   - The UI exits with its app, by watching the app's process handle, so a
     stuck UI can't linger as an orphan.
   - Both processes log to `%APPDATA%\lidfold\lidfold.log`.

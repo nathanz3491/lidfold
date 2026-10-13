@@ -6,6 +6,11 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- The panel could show another process's pages. Outside private mode
+  pywebview serves every app on the fixed port 42001, and Windows lets a
+  second server bind it too, so after an update the panel showed the old
+  install's markup. Any other pywebview app could also have served pages
+  with access to the panel's API. The UI now serves from its own free port.
 - Dragging a slider in the panel moved the whole panel instead. pywebview
   makes frameless windows draggable from any point by default; that is now
   off for every lidfold window.
