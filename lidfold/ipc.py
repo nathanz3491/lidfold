@@ -223,7 +223,7 @@ class UiBridge:
             from .config import data_dir
             os.startfile(data_dir())
         elif cmd == "quit":
-            c.quit()
+            c.quit("panel")
         else:
             raise ValueError(f"unknown command {cmd!r}")
 

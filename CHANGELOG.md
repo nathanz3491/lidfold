@@ -6,6 +6,8 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- The app logs why it exits, and logs errors with their traceback. It runs
+  windowless, so an exit used to leave no trace.
 - The panel could show another process's pages. Outside private mode
   pywebview serves every app on the fixed port 42001, and Windows lets a
   second server bind it too, so after an update the panel showed the old

@@ -5,6 +5,8 @@ import ctypes
 import math
 import time
 
+from . import __version__
+from . import log as logs
 from .angle import LidAngle
 from .calibrate import load_model
 from .camera import CameraWorker
@@ -19,6 +21,7 @@ STALE_READING = 1.0   # s without a camera reading -> clear the effect
 RESUME_GAP = 2.0      # loop stalled this long -> assume sleep/resume, reset
 STATUS_EVERY = 0.5    # s between live lid-angle updates in the tray tooltip
 QUIT_EVENT = r"Local\lidfold-quit"   # set by `lidfold install` to stop a running copy
+log = logs.get("app")
 
 
 def _single_instance() -> object | None:
@@ -41,6 +44,7 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
         ctl: Controller | None = None, ui: bool = True) -> None:
     if _single_instance() is None:
         raise SystemExit("lidfold is already running (see the tray icon).")
+    log.info("app %s starting, effect %s", __version__, settings.effect)
     ctl = ctl or Controller(settings)
     icon = Tray(ctl) if tray else None
     if icon:
@@ -61,9 +65,13 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
     changes = {"model"}
     last_stamp, last_loop, target, clear = 0.0, time.monotonic(), 0.0, False
     last_status = 0.0
+    # Logged on exit: the app runs windowless, so an unexplained exit would
+    # otherwise look like a crash.
+    reason = "quit from the tray or panel"
     try:
         while not ctl.quit_requested.is_set():
             if quit_event and kernel32.WaitForSingleObject(ctypes.c_void_p(quit_event), 0) == 0:
+                reason = "quit event (`lidfold quit` or an update)"
                 break
             changes |= ctl.take_changes()
             if "style" in changes:
@@ -148,8 +156,13 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
                 overlay.show()
                 overlay.render(visual)   # blocks on vsync
     except KeyboardInterrupt:
-        pass
+        reason = "Ctrl+C"
+    except BaseException:
+        reason = "an error"
+        log.exception("app loop failed")
+        raise
     finally:
+        log.info("app exiting: %s", reason)
         if camera is not None:
             camera.stop()
         hotkey.stop()

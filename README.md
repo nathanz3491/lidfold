@@ -152,7 +152,9 @@ How the UI is built:
     whichever process's pages answered, such as an old install's.
   - The UI exits with its app, by watching the app's process handle, so a
     stuck UI can't linger as an orphan.
-  - Both processes log to `%APPDATA%\lidfold\lidfold.log`.
+  - Both processes log to `%APPDATA%\lidfold\lidfold.log`, including why
+    the app exited: Quit from the tray or panel, the quit event (`lidfold
+    quit` or an update), Ctrl+C, or an error with its traceback.
 
 **Calibration** (one slow sweep, then click-to-label):
 

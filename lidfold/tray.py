@@ -203,7 +203,9 @@ class Controller:
 
         threading.Thread(target=wait, daemon=True, name=f"tool-{label}").start()
 
-    def quit(self) -> None:
+    def quit(self, source: str = "tray menu") -> None:
+        from . import log as logs
+        logs.get("tray").info("quit requested from the %s", source)
         self.quit_requested.set()
         self.on_change()
 
