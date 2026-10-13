@@ -95,7 +95,10 @@ macOS-style popover above the tray that closes when you click elsewhere:
 
 - Header: on/off switch, and a status pill with the live lid angle
   ("Active · lid 72°", "Paused", "Calibration running…").
-- **Effect** cards: Duo, Ghost, Flat, Iris, Card, Genie, Fold, Glass.
+- **Effect** cards, 20 in five rows: Duo, Ghost, Flat, Iris; Card, Genie,
+  Fold, Glass; Cube, Curl, Blinds, Doorway; Reflect, Stack, Twirl, Ripple;
+  Aura, Island, Prism, Mosaic. Hover a card for a one-line description. The
+  panel is capped at the screen's work area, and scrolls on a short screen.
 - **Blur** and **Shading** sliders; changes apply live.
 - **Effect range**: one track from open (left) to closed (right) with two
   handles: where the effect starts and where it is full (the blue one). An
@@ -188,7 +191,7 @@ How the UI is built:
 - `replay <clip.mp4>`: write an annotated video and a CSV trace for tuning.
 - `simulate [--seconds N] [--still]`: preview the effect with a scripted lid
   and no camera.
-- Global `--effect duo|ghost|flat|iris|card|genie|fold|glass`, `--camera N`, `--action-angle DEG`
+- Global `--effect NAME` (any effect below, lower case), `--camera N`, `--action-angle DEG`
   and `--max-angle DEG`. These, plus `clear_after`, `blur` and `shadow`, can
   be saved in `%APPDATA%\lidfold\settings.json`.
 
@@ -297,8 +300,10 @@ leaves the desktop folded.
   Mac Duo does. Defaults follow Mac Duo: perspective 0.7, blur 0.65, shadow 0.65.
 - **flat**: the original look, where the desktop lies down toward the
   keyboard. **iris**: aperture blades.
-- Four effects in Apple's motion language. Each is an exact copy of the
-  desktop at rest, and each runs in under 2 ms of GPU time at 3072×1920.
+- Sixteen more effects in Apple's motion language, most after Apple's own
+  transitions (Keynote, Books, Time Machine, iOS). Each is an exact copy of
+  the desktop at rest, and each takes under 2 ms of GPU time per frame
+  (median) at 3072×1920 on a Radeon 780M.
   - **card**: like closing an app on iPhone. The desktop shrinks into a card
     with continuous ("squircle") corners, a hairline rim and a soft shadow.
     Behind it, the desktop recedes, blurred, more saturated and dimmed, like
@@ -316,6 +321,35 @@ leaves the desktop folded.
     light, and the surface ripples as the lid moves. The rim compresses
     content rather than stretching it: a stretching rim smeared vertical
     edges into streaks.
+  - **cube**: the Mac's user-switching cube, turned on its side. The
+    desktop is the front of a cube that rolls forward and down, backing
+    away as it turns, until the top face, a frosted copy, faces you. It is
+    ray-traced against the cube's two faces.
+  - **curl**: a page turn, as in Apple Books. The desktop peels up from the
+    bottom-right corner around a cylinder, shows its pale back with the
+    desktop faintly through it, and turns away.
+  - **blinds**: venetian blinds closing. Nine slats turn edge-on, those by
+    the hinge first, each lit across its face.
+  - **doorway**: Keynote's Doorway. The desktop splits down the middle and
+    both halves swing toward you, in perspective, onto the dark.
+  - **reflect**: an Apple product shot. The desktop becomes a card on a
+    black, glossy floor, with its reflection fading below it.
+  - **stack**: Time Machine. The desktop backs away into a stack of earlier
+    copies, each further back and higher, against a field of stars.
+  - **twirl**: Keynote's Twirl. The desktop spins into a vortex and shrinks
+    away into it.
+  - **ripple**: Keynote's Droplet. A ring of ripples runs out from the
+    middle, refracting the desktop and catching the light. Behind it, the
+    desktop sinks under dark, frosted water.
+  - **aura**: the glow Apple Intelligence puts around the screen. Bands of
+    lavender, pink, blue, coral and peach flow around the edge and spread
+    inward as the desktop dims.
+  - **island**: the Dynamic Island. The desktop squeezes up into a black
+    pill at the top centre, over a blurred, darkening desktop.
+  - **prism**: Keynote's Color Planes. Red, green and blue pull apart in
+    three directions and fade on black.
+  - **mosaic**: the desktop breaks into rounded tiles that spin and shrink
+    away, in a wave rising from the hinge.
 - The desktop is captured with Desktop Duplication (dxcam) and redrawn by a
   GLSL shader in a click-through, topmost window.
 - The window is marked `WDA_EXCLUDEFROMCAPTURE`, so the capture keeps seeing

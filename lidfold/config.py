@@ -18,7 +18,10 @@ FPS_CHOICES = (10, 15, 20, 30)   # camera analysis rates offered in the UI
 # Effects in menu order: (setting value, label). Shader indices live in
 # shaders.EFFECT_INDEX.
 EFFECTS = (("duo", "Duo"), ("ghost", "Ghost"), ("flat", "Flat"), ("iris", "Iris"),
-           ("card", "Card"), ("genie", "Genie"), ("fold", "Fold"), ("glass", "Glass"))
+           ("card", "Card"), ("genie", "Genie"), ("fold", "Fold"), ("glass", "Glass"),
+           ("cube", "Cube"), ("curl", "Curl"), ("blinds", "Blinds"), ("doorway", "Doorway"),
+           ("reflect", "Reflect"), ("stack", "Stack"), ("twirl", "Twirl"), ("ripple", "Ripple"),
+           ("aura", "Aura"), ("island", "Island"), ("prism", "Prism"), ("mosaic", "Mosaic"))
 EFFECT_NAMES = tuple(name for name, _ in EFFECTS)
 
 

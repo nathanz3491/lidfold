@@ -4,7 +4,10 @@ Coordinates: uv in [0,1], v measured upward from the hinge (bottom edge)."""
 
 # Value of the `effect` uniform for each effect, as dispatched in main().
 EFFECT_INDEX = {"duo": 0, "iris": 1, "flat": 2, "ghost": 3,
-                "card": 4, "genie": 5, "fold": 6, "glass": 7}
+                "card": 4, "genie": 5, "fold": 6, "glass": 7,
+                "cube": 8, "curl": 9, "blinds": 10, "doorway": 11,
+                "reflect": 12, "stack": 13, "twirl": 14, "ripple": 15,
+                "aura": 16, "island": 17, "prism": 18, "mosaic": 19}
 
 VERTEX = """
 #version 330
@@ -28,7 +31,7 @@ uniform float perspective; // 0..1, Mac Duo default 0.7
 uniform float blur;        // user strength 0..1
 uniform float shadow;      // user strength 0..1
 uniform float aspect;      // width / height
-uniform int effect;        // 0 duo, 1 iris, 2 flat, 3 ghost, 4 card, 5 genie, 6 fold, 7 glass
+uniform int effect;        // see EFFECT_INDEX
 in vec2 uv;
 out vec4 color;
 
@@ -352,11 +355,402 @@ vec4 glass(vec2 q) {
     return vec4(mix(under, sharp(q), smoothstep(-aa, aa, d)), 1.0);
 }
 
+// --------------------------------------------- more helpers for the effects below
+vec2 rot2(vec2 v, float a) {
+    float s = sin(a), c = cos(a);
+    return vec2(c * v.x - s * v.y, s * v.x + c * v.y);
+}
+
+// Anti-aliased mask for st inside the unit square. Call it from uniform
+// control flow: it uses screen-space derivatives.
+float inside01(vec2 st) {
+    vec2 fw = fwidth(st) + 1e-5;
+    vec2 m = smoothstep(-fw, fw, st) * (1.0 - smoothstep(1.0 - fw, 1.0 + fw, st));
+    return m.x * m.y;
+}
+
+// Distance to a rounded rectangle with circular corners.
+float roundBox(vec2 p, vec2 halfSize, float radius) {
+    vec2 d = abs(p) - halfSize + radius;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - radius;
+}
+
+float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float pixel() { return 1.0 / float(textureSize(desktop, 0).y); }   // one pixel, in screen heights
+
+// ----------------------------------------------------------------- Cube
+// The macOS user-switching cube, turned on its side: the desktop is the
+// front of a cube that rolls forward and down, backing away as it turns,
+// until the top face, a frosted copy, faces you.
+vec4 cube(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    float th = 0.5 * PI * p;
+    float s = sin(th), c = cos(th);
+    const float D = 2.6;                                     // viewer distance, screen heights
+    vec3 eye = vec3(0.5 * aspect, 0.5, D);
+    vec3 ray = vec3(q.x * aspect, q.y, 0.0) - eye;
+    vec3 center = vec3(0.5 * aspect, 0.5, -0.5 - 0.8 * sin(2.0 * th));
+    vec3 nFront = vec3(0.0, -s, c);                          // also the top face's depth axis
+    vec3 nTop = vec3(0.0, c, s);                             // also the front face's up axis
+    float fFront = dot(ray, nFront), fTop = dot(ray, nTop);
+    vec3 hitF = eye + ray * (dot(center + 0.5 * nFront - eye, nFront) / min(fFront, -1e-5));
+    vec3 hitT = eye + ray * (dot(center + 0.5 * nTop - eye, nTop) / min(fTop, -1e-5));
+    vec2 uvF = vec2((hitF.x - center.x) / aspect + 0.5, dot(hitF - center, nTop) + 0.5);
+    vec2 uvT = vec2((hitT.x - center.x) / aspect + 0.5, 0.5 - dot(hitT - center, nFront));
+    // A convex cube: at most one face that faces you covers any pixel.
+    float mF = inside01(uvF) * step(fFront, -1e-4);
+    float mT = inside01(uvT) * step(fTop, -1e-4);
+
+    float light = clamp(shadow, 0.0, 1.0);
+    float kF = D / max(D - hitF.z, 1e-3);
+    vec3 front = soft(uvF, clamp(blur, 0.0, 1.0) * 0.006 * defocus + 0.5 * max(0.0, 1.0 / kF - 1.0) * pixel());
+    front *= mix(1.0, 0.4 + 0.6 * c, light);
+    vec3 top = saturate3(soft(uvT, (0.35 + 0.65 * clamp(blur, 0.0, 1.0)) * 0.04), 1.2) * 0.7 + 0.04;
+    top *= mix(1.0, 0.4 + 0.6 * s, light);
+    vec3 col = mix(mix(backdrop(q, p) * 0.3, top, mT), front, mF);
+    return vec4(p < 1e-5 ? sharp(q) : col, 1.0);
+}
+
+// ----------------------------------------------------------------- Curl
+// A page turn, as in Apple Books: the desktop peels up from the bottom
+// right corner around a cylinder, shows its pale back, and turns away.
+vec4 curl(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    vec2 P = vec2(q.x * aspect, q.y);
+    vec2 dir = normalize(vec2(1.0, -0.55));                  // toward the lifting corner
+    const float R = 0.085;                                   // curl radius, screen heights
+    float axis = mix(dot(vec2(aspect, 0.0), dir) + R, dot(vec2(0.0, 1.0), dir) - R, p);
+    float d = dot(P, dir) - axis;                            // > 0: past the curl axis
+    float x = clamp(d / R, -1.0, 1.0);
+    // The page point under each layer, by its arc length a past the axis:
+    // the flipped-over flat part, then the roll's upper and lower halves.
+    vec2 unit = vec2(aspect, 1.0);
+    vec2 stBack = (P + dir * (PI * R - 2.0 * d)) / unit;
+    float phiUp = PI - asin(x), phiLow = asin(x);
+    vec2 stUp = (P + dir * (R * phiUp - d)) / unit;
+    vec2 stLow = (P + dir * (R * phiLow - d)) / unit;
+    bool flatPart = d < 0.0, roll = d >= 0.0 && d <= R;
+    bool inBack = all(greaterThanEqual(stBack, vec2(0.0))) && all(lessThanEqual(stBack, vec2(1.0)));
+    bool inUp = all(greaterThanEqual(stUp, vec2(0.0))) && all(lessThanEqual(stUp, vec2(1.0)));
+    bool inLow = all(greaterThanEqual(stLow, vec2(0.0))) && all(lessThanEqual(stLow, vec2(1.0)));
+    int part = 4;                     // 0 back (flat), 1 back (roll), 2 front (roll), 3 front, 4 none
+    if (flatPart && inBack) part = 0;
+    else if (roll && inUp) part = 1;
+    else if (roll && inLow) part = 2;
+    else if (flatPart) part = 3;
+
+    vec2 st = part == 0 ? stBack : part == 1 ? stUp : part == 2 ? stLow : q;
+    vec3 tex = soft(st, part < 2 ? 0.02 : clamp(blur, 0.0, 1.0) * 0.004 * defocus);
+    float light = clamp(shadow, 0.0, 1.0);
+    vec3 paper = mix(saturate3(tex, 0.5), vec3(0.9), 0.72);   // pale, the desktop faintly through it
+    vec3 col;
+    if (part == 0) col = paper * (1.0 - 0.18 * light * exp(d / 0.05));
+    else if (part == 1) col = paper * mix(1.0, 0.72 - 0.28 * cos(phiUp), light);
+    else if (part == 2) col = tex * mix(1.0, 0.55 + 0.45 * cos(phiLow), light)
+                            + vec3(0.16) * pow(max(0.0, sin(2.0 * phiLow)), 8.0) * light;
+    else if (part == 3) col = tex * (1.0 - light * 0.45 * exp(d / 0.04) * smoothstep(0.0, 0.05, p));
+    else col = backdrop(q, p) * 0.5 * (1.0 - light * 0.5 * exp(-(d - R) / 0.06));
+    return vec4(col, 1.0);
+}
+
+// --------------------------------------------------------------- Blinds
+// Venetian blinds closing: the desktop is cut into slats that turn
+// edge-on, those by the hinge first, each lit across its face.
+vec4 blinds(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    const float N = 9.0;
+    float h = 1.0 / N;
+    float i = min(floor(q.y * N), N - 1.0);
+    float c = (i + 0.5) * h;
+    float lp = clamp(p * 1.4 - 0.4 * i / (N - 1.0), 0.0, 1.0);
+    float th = 0.49 * PI * lp * lp * (3.0 - 2.0 * lp);
+    float ct = cos(th), sn = sin(th);
+    float t = (q.y - c) / ct;                                // position across the slat
+    vec2 st = vec2(q.x, c + t);
+    float aa = pixel() / ct;
+    float on = 1.0 - smoothstep(0.5 * h - aa, 0.5 * h + aa, abs(t));
+    on = mix(1.0, on, smoothstep(0.0, 0.05, lp));
+    float light = clamp(shadow, 0.0, 1.0);
+    vec3 col = soft(st, clamp(blur, 0.0, 1.0) * 0.005 * defocus);
+    col *= mix(1.0, 0.45 + 0.55 * ct, light) * (1.0 + 0.25 * sn * (t / (0.5 * h)) * light);
+    // The gap, shaded just beyond each slat's edge.
+    float beyond = abs(q.y - c) - 0.5 * h * ct;
+    vec3 gap = backdrop(q, p) * 0.4 * (1.0 - 0.6 * light * exp(-max(beyond, 0.0) / 0.012));
+    return vec4(mix(gap, col, on), 1.0);
+}
+
+// -------------------------------------------------------------- Doorway
+// Keynote's Doorway: the desktop splits down the middle and both halves
+// swing toward you on hinges at the sides, opening onto the dark.
+vec4 doorway(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    float th = radians(86.0) * p;
+    float sn = sin(th), cs = cos(th);
+    const float D = 2.2;
+    float cx = 0.5 * aspect;
+    float X = q.x * aspect;
+    bool left = X < cx;
+    float xs = left ? X : aspect - X;                        // screen distance from this door's hinge
+    float den = D * cs + (xs - cx) * sn;
+    float u = xs * D / max(den, 1e-4);                       // door point, from its hinge
+    float k = D / max(D - u * sn, 1e-3);                     // perspective scale there
+    float ys = 0.5 + (q.y - 0.5) / k;
+    vec2 st = vec2((left ? u : aspect - u) / aspect, ys);
+    float light = clamp(shadow, 0.0, 1.0);
+    vec3 door = soft(st, clamp(blur, 0.0, 1.0) * 0.006 * defocus);
+    door *= mix(1.0, 0.4 + 0.6 * cs, light) * (1.0 - 0.25 * light * sn * u / cx);
+    float fu = fwidth(u) + 1e-5, fy = fwidth(ys) + 1e-5;
+    float m = (1.0 - smoothstep(cx - fu, cx + fu, u)) * smoothstep(-fy, fy, ys)
+            * (1.0 - smoothstep(1.0 - fy, 1.0 + fy, ys)) * step(1e-4, den);
+    m = mix(1.0, m, smoothstep(0.0, 0.02, p));
+    // Behind: the dark, with a little light coming through the opening.
+    float glow = 0.12 * p * exp(-pow((X - cx) / (0.05 + 0.5 * p), 2.0));
+    return vec4(mix(backdrop(q, p) * 0.35 + vec3(glow), door, m), 1.0);
+}
+
+// -------------------------------------------------------------- Reflect
+// An Apple product shot: the desktop becomes a card standing on a black,
+// glossy floor, its reflection fading below it.
+vec4 reflection(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    float scale = 1.0 - 0.44 * p;
+    float floorY = 0.30 * p;
+    vec2 P = vec2((q.x - 0.5) * aspect, q.y);
+    vec2 halfSize = 0.5 * scale * vec2(aspect, 1.0);
+    vec2 center = vec2(0.0, floorY + halfSize.y);
+    float radius = 0.022 * smoothstep(0.0, 0.4, p);
+    float d = roundBox(P - center, halfSize, radius);
+    vec2 st = vec2(0.5 + P.x / (aspect * scale), (q.y - floorY) / scale);
+    vec3 front = look(st, clamp(blur, 0.0, 1.0) * 0.004 * defocus);
+    // The mirror image: the card flipped about the floor line.
+    float below = floorY - q.y;
+    float dm = roundBox(vec2(P.x, floorY + below) - center, halfSize, radius);
+    vec2 stm = vec2(st.x, below / scale);
+    vec3 mirror = soft(stm, 0.004 + 0.03 * clamp(below / (2.0 * halfSize.y), 0.0, 1.0));
+    float fade = 0.36 * exp(-max(below, 0.0) / (0.12 * scale)) * step(0.0, below);
+    // The studio: near black, a soft pool of light behind the card, a darker floor.
+    vec2 r = (q - vec2(0.5, center.y)) * vec2(aspect * 0.6, 1.0);
+    vec3 studio = vec3(0.13, 0.13, 0.14) * exp(-dot(r, r) * 2.2);
+    studio *= mix(0.5, 1.0, smoothstep(floorY - 0.002, floorY + 0.002, q.y));
+    vec3 bg = mix(backdrop(q, p), studio, smoothstep(0.0, 0.5, p));
+    float aa = max(fwidth(d), 1e-5);
+    float card = mix(1.0, 1.0 - smoothstep(-aa, aa, d), smoothstep(0.0, 0.02, p));
+    float mirrorMask = 1.0 - smoothstep(-aa, aa, dm);
+    vec3 c = mix(bg, mirror, fade * mirrorMask);
+    return vec4(mix(c, front, card), 1.0);
+}
+
+// ---------------------------------------------------------------- Stack
+// Time Machine: the desktop backs away into a stack of earlier copies,
+// each further back and higher, so it peeks over the one in front, against
+// a field of stars.
+vec4 stack(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    const float D = 2.0;
+    vec2 P = vec2((q.x - 0.5) * aspect, q.y - 0.5);
+    vec2 st = vec2(0.0);
+    float copy = -1.0, edge = 0.0, sc = 1.0;
+    for (int k = 0; k < 7; k++) {                            // front to back; the first hit wins
+        float s = D / (D + 2.4 * p + 0.8 * float(k));
+        vec2 local = (P - vec2(0.0, 0.3 * float(k) * s)) / s;   // climbing 0.3 per copy
+        vec2 uv = vec2(local.x / aspect + 0.5, local.y + 0.5);
+        vec2 e2 = min(uv, 1.0 - uv) * vec2(aspect, 1.0) * s; // to this copy's edge, screen heights
+        float e = min(e2.x, e2.y);
+        if (copy < 0.0 && e >= 0.0) { st = uv; copy = float(k); edge = e; sc = s; }
+    }
+    float light = clamp(shadow, 0.0, 1.0);
+    float sigma = clamp(blur, 0.0, 1.0) * (0.004 * defocus + 0.006 * max(copy, 0.0))
+                + 0.5 * (1.0 / sc - 1.0) * pixel();
+    vec3 col = soft(st, sigma);
+    col *= copy < 0.5 ? 1.0 - 0.2 * p * light : 0.55 * pow(0.8, copy);
+    col = mix(col, col * vec3(0.85, 0.93, 1.12), min(copy, 1.0) * 0.6);   // older copies cooler
+    float rim = (1.0 - smoothstep(0.0, 2.0 * pixel(), edge)) * smoothstep(0.0, 0.1, p);
+    col = mix(col, vec3(0.75), 0.35 * rim);
+    // Space: deep blue-black, a faint nebula of the desktop, scattered stars.
+    vec2 g = q * vec2(aspect, 1.0) * 110.0;
+    vec2 cell = floor(g);
+    vec2 offset = fract(g) - 0.5 - (vec2(hash12(cell + 3.1), hash12(cell + 5.7)) - 0.5) * 0.6;
+    float star = step(0.965, hash12(cell)) * smoothstep(0.09, 0.0, length(offset)) * (0.4 + 0.6 * hash12(cell + 9.0));
+    vec3 space = vec3(0.01, 0.015, 0.035) + backdrop(q, p) * 0.12 + vec3(star) * 0.9 * smoothstep(0.1, 0.5, p);
+    float m = copy >= 0.0 ? smoothstep(0.0, 1.5 * pixel(), edge) : 0.0;
+    m = mix(1.0, m, smoothstep(0.0, 0.02, p));
+    return vec4(mix(space, col, m), 1.0);
+}
+
+// ---------------------------------------------------------------- Twirl
+// Keynote's Twirl: the desktop spins into a vortex at the centre and
+// shrinks away into it.
+vec4 twirl(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    vec2 P = vec2((q.x - 0.5) * aspect, q.y - 0.5);
+    float r = length(P);
+    float scale = 1.0 - 0.6 * p * p;
+    float angle = 4.5 * p * pow(max(0.0, 1.0 - r / 1.2), 2.0);
+    vec2 R = rot2(P, -angle) / scale;
+    vec2 st = vec2(R.x / aspect + 0.5, R.y + 0.5);
+    vec3 col = look(st, clamp(blur, 0.0, 1.0) * 0.012 * defocus);
+    col *= 1.0 - clamp(shadow, 0.0, 1.0) * 0.3 * p * exp(-r / 0.25);   // a darker eye
+    float m = mix(1.0, inside01(st), smoothstep(0.0, 0.02, p));
+    return vec4(mix(backdrop(q, p) * 0.45, col, m), 1.0);
+}
+
+// --------------------------------------------------------------- Ripple
+// Keynote's Droplet: a drop lands in the middle and a ring of ripples runs
+// outward, leaving the desktop behind it sunk under dark, frosted water.
+vec4 ripple(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    vec2 P = vec2((q.x - 0.5) * aspect, q.y - 0.5);
+    float r = length(P) + 1e-5;
+    vec2 n = P / r;
+    float ring = 1.3 * p;                                    // radius of the ring of waves
+    float env = exp(-pow((r - ring) / 0.14, 2.0)) * smoothstep(0.0, 0.08, p);
+    float phase = 55.0 * (r - ring);
+    float height = sin(phase) * env;
+    float slant = cos(phase) * env;
+    vec2 st = q - vec2(n.x / aspect, n.y) * 0.016 * height;
+    float pool = smoothstep(ring - 0.02, ring - 0.3, r) * smoothstep(0.0, 0.1, p);
+    float sigma = (0.3 + 0.7 * clamp(blur, 0.0, 1.0)) * 0.02 * pool + clamp(blur, 0.0, 1.0) * 0.003 * defocus;
+    vec3 col = look(st, sigma);
+    float light = clamp(shadow, 0.0, 1.0);
+    col *= 1.0 - light * 0.5 * pool;
+    float facing = dot(n, normalize(vec2(-0.5, 0.8)));       // light from the upper left
+    col += vec3(0.20) * max(0.0, slant * facing) * (0.5 + 0.5 * light);
+    col -= vec3(0.10) * max(0.0, -slant * facing) * light;
+    return vec4(max(col, 0.0), 1.0);
+}
+
+// ----------------------------------------------------------------- Aura
+// The glow Apple Intelligence puts around the screen: soft bands of
+// lavender, pink, blue, coral and peach flow around the edge and spread
+// inward as the desktop dims.
+vec3 auraColor(float h) {
+    h = fract(h) * 5.0;
+    float f = fract(h);
+    int i = int(floor(h));
+    vec3 c0 = vec3(0.74, 0.51, 0.95), c1 = vec3(0.96, 0.73, 0.92), c2 = vec3(0.55, 0.62, 1.0),
+         c3 = vec3(1.0, 0.40, 0.47), c4 = vec3(1.0, 0.73, 0.44);
+    vec3 a = i == 0 ? c0 : i == 1 ? c1 : i == 2 ? c2 : i == 3 ? c3 : c4;
+    vec3 b = i == 0 ? c1 : i == 1 ? c2 : i == 2 ? c3 : i == 3 ? c4 : c0;
+    return mix(a, b, smoothstep(0.0, 1.0, f));
+}
+
+vec4 aura(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    vec2 P = vec2(q.x * aspect, q.y);
+    float e = min(min(P.x, aspect - P.x), min(P.y, 1.0 - P.y));   // to the nearest edge
+    vec2 C = P - vec2(0.5 * aspect, 0.5);
+    float around = atan(C.y, C.x) / (2.0 * PI) + 0.5;
+    float wobble = 0.5 + 0.5 * sin(around * 2.0 * PI * 3.0 + p * 9.0);
+    float width = (0.012 + 0.17 * p) * (0.75 + 0.5 * wobble);
+    vec3 tint = auraColor(around + 0.6 * p);
+    float on = smoothstep(0.0, 0.08, p);
+    vec3 col = soft(q, clamp(blur, 0.0, 1.0) * 0.012 * p) * (1.0 - 0.45 * p);
+    col = 1.0 - (1.0 - col) * (1.0 - tint * exp(-e / width) * 0.85 * on);   // screen blend
+    col += tint * 0.6 * exp(-e / 0.004) * on;                                 // a bright inner rim
+    return vec4(min(col, 1.0), 1.0);
+}
+
+// --------------------------------------------------------------- Island
+// The Dynamic Island: the desktop squeezes up into a black pill at the top
+// centre, over a blurred, darkening desktop.
+vec4 island(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    vec2 P = vec2((q.x - 0.5) * aspect, q.y);
+    float m = smoothstep(0.0, 0.8, p);                       // done before the final fade
+    vec2 pillHalf = vec2(0.19, 0.036);
+    vec2 halfSize = mix(vec2(0.5 * aspect, 0.5), pillHalf, m);
+    vec2 center = mix(vec2(0.0, 0.5), vec2(0.0, 0.94), m);
+    float radius = mix(0.0, pillHalf.y, smoothstep(0.0, 0.6, m));
+    radius = min(radius, min(halfSize.x, halfSize.y));
+    float d = roundBox(P - center, halfSize, radius);
+    vec2 st = (P - center) / (2.0 * halfSize) + 0.5;         // the content squeezes in
+    vec3 content = look(st, clamp(blur, 0.0, 1.0) * 0.01 * defocus);
+    content = mix(content, vec3(0.0), smoothstep(0.25, 0.85, m));   // the island is black
+    float aa = max(fwidth(d), 1e-5);
+    float inside = mix(1.0, 1.0 - smoothstep(-aa, aa, d), smoothstep(0.0, 0.02, p));
+    // A faint rim, so the black pill reads against a dark desktop.
+    float rim = smoothstep(-2.5 * aa, -0.5 * aa, d) * (1.0 - smoothstep(-0.5 * aa, 0.5 * aa, d));
+    vec3 c = mix(backdrop(q, p) * (1.0 - 0.55 * p), content, inside);
+    c += vec3(0.22) * rim * smoothstep(0.4, 0.9, m);
+    return vec4(c, 1.0);
+}
+
+// ---------------------------------------------------------------- Prism
+// Keynote's Color Planes: red, green and blue pull apart in three
+// directions and fade on black.
+vec4 prism(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    vec2 C = vec2((q.x - 0.5) * aspect, q.y - 0.5);
+    float spread = 0.11 * p;
+    float sigma = clamp(blur, 0.0, 1.0) * 0.01 * defocus;
+    vec2 unit = vec2(aspect, 1.0);
+    vec2 stR = (C / (1.0 + 0.10 * p) - vec2(0.0, 1.0) * spread) / unit + 0.5;
+    vec2 stG = (C / (1.0 + 0.16 * p) - vec2(-0.866, -0.5) * spread) / unit + 0.5;
+    vec2 stB = (C / (1.0 + 0.22 * p) - vec2(0.866, -0.5) * spread) / unit + 0.5;
+    float on = smoothstep(0.0, 0.02, p);
+    vec3 col = vec3(look(stR, sigma).r * mix(1.0, inside01(stR), on),
+                    look(stG, sigma).g * mix(1.0, inside01(stG), on),
+                    look(stB, sigma).b * mix(1.0, inside01(stB), on));
+    return vec4(col * (1.0 - 0.35 * p), 1.0);
+}
+
+// --------------------------------------------------------------- Mosaic
+// The desktop breaks into rounded tiles that spin and shrink away in a
+// wave rising from the hinge.
+vec4 mosaic(vec2 q) {
+    float p = clamp(progress, 0.0, 1.0);
+    const float rows = 9.0;
+    float cell = 1.0 / rows;
+    vec2 P = vec2((q.x - 0.5) * aspect, q.y);
+    vec2 id = floor(P / cell);
+    vec2 cc = (id + 0.5) * cell;                             // tile centre
+    float dist = length(cc * vec2(0.6, 1.0));                // from the hinge's centre
+    float lp = clamp(p * 1.7 - dist * 0.55, 0.0, 1.0);
+    float e = lp * lp * (3.0 - 2.0 * lp);
+    float scale = max(1.0 - e, 1e-3);
+    float spin = 0.6 * e * (mod(id.x + id.y, 2.0) * 2.0 - 1.0);
+    vec2 L = rot2(P - cc, -spin) / scale;
+    float d = roundBox(L, vec2(0.5 * cell), 0.22 * cell * smoothstep(0.0, 0.3, e));
+    vec2 st = vec2((cc.x + L.x) / aspect + 0.5, cc.y + L.y);
+    vec3 col = soft(st, clamp(blur, 0.0, 1.0) * 0.004 * defocus) * (1.0 - 0.5 * e * clamp(shadow, 0.0, 1.0));
+    float aa = 1.2 * pixel() / scale;
+    float inside = (1.0 - smoothstep(-aa, aa, d)) * step(1e-3, 1.0 - e);
+    inside = mix(1.0, inside, smoothstep(0.0, 0.05, e));
+    return vec4(mix(backdrop(q, p) * 0.45, col, inside), 1.0);
+}
+
+vec4 render(vec2 q) {
+    switch (effect) {
+        case 1: return iris(q);
+        case 2: return angled(q, tilt);
+        case 3: return ghost(q);
+        case 4: return card(q);
+        case 5: return genie(q);
+        case 6: return fold(q);
+        case 7: return glass(q);
+        case 8: return cube(q);
+        case 9: return curl(q);
+        case 10: return blinds(q);
+        case 11: return doorway(q);
+        case 12: return reflection(q);
+        case 13: return stack(q);
+        case 14: return twirl(q);
+        case 15: return ripple(q);
+        case 16: return aura(q);
+        case 17: return island(q);
+        case 18: return prism(q);
+        case 19: return mosaic(q);
+        default: return duo(q);
+    }
+}
+
 void main() {
-    vec4 c = effect == 1 ? iris(uv) : effect == 2 ? angled(uv, tilt)
-           : effect == 3 ? ghost(uv) : effect == 4 ? card(uv)
-           : effect == 5 ? genie(uv) : effect == 6 ? fold(uv)
-           : effect == 7 ? glass(uv) : duo(uv);
+    vec4 c = render(uv);
     c.rgb *= 1.0 - smoothstep(0.86, 1.0, progress);   // dissolve at the end
     color = vec4(c.rgb, 1.0);
 }

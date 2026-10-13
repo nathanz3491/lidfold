@@ -367,7 +367,7 @@ class Ui:
             return                      # this click closed it (blur came first)
         s = scale()
         left, top, right, bottom = work_area()
-        w, h = int(PANEL[0] * s), int(self.panel_height * s)
+        w, h = self._panel_size()
         hwnd = self._hwnd("panel")
         if not hwnd or not self.windows["panel"].events.loaded.is_set():
             log.info("panel requested before it loaded; opening when ready")
@@ -388,15 +388,23 @@ class Ui:
             self.last_blur_hide = time.monotonic()
         self.conceal("panel")
 
+    def _panel_size(self) -> tuple[int, int]:
+        """Physical size: the content's height, but never taller than the
+        work area (the page scrolls then)."""
+        s = scale()
+        left, top, right, bottom = work_area()
+        h = min(int(self.panel_height * s), bottom - top - 2 * int(MARGIN * s))
+        return int(PANEL[0] * s), h
+
     def fit_panel(self, height: float) -> None:
-        height = max(200, min(900, int(height)))
+        height = max(200, min(2000, int(height)))
         if height == self.panel_height:
             return                         # no-op: state updates arrive ~5 times a second
         self.panel_height = height
         if self.panel_open:
             s = scale()
             left, top, right, bottom = work_area()
-            w, h = int(PANEL[0] * s), int(self.panel_height * s)
+            w, h = self._panel_size()
             x, y = right - w - int(MARGIN * s), bottom - h - int(MARGIN * s)
             self.ops.put(lambda: (self.windows["panel"].resize(round(w / s), round(h / s)),
                                   self.windows["panel"].move(round(x / s), round(y / s))))

@@ -67,7 +67,9 @@ def test_ghost_crops_through_the_top_never_shrinks(render):
     assert (out[H // 8: 7 * H // 8, W // 8: 7 * W // 8].sum(axis=2) > 0).mean() > 0.95
 
 
-NEW_EFFECTS = {"card": 4, "genie": 5, "fold": 6, "glass": 7}
+NEW_EFFECTS = {"card": 4, "genie": 5, "fold": 6, "glass": 7, "cube": 8, "curl": 9, "blinds": 10,
+               "doorway": 11, "reflect": 12, "stack": 13, "twirl": 14, "ripple": 15, "aura": 16,
+               "island": 17, "prism": 18, "mosaic": 19}
 
 
 def test_every_effect_has_a_shader_index():
@@ -76,13 +78,13 @@ def test_every_effect_has_a_shader_index():
     assert all(shaders.EFFECT_INDEX[name] == index for name, index in NEW_EFFECTS.items())
 
 
-@pytest.mark.parametrize("effect", NEW_EFFECTS.values())
+@pytest.mark.parametrize("effect", NEW_EFFECTS.values(), ids=NEW_EFFECTS.keys())
 def test_new_effects_are_exact_desktop_at_rest(render, effect):
     draw, expected = render
     assert np.mean(draw(effect, 0.0) == expected) > 0.99
 
 
-@pytest.mark.parametrize("effect", NEW_EFFECTS.values())
+@pytest.mark.parametrize("effect", NEW_EFFECTS.values(), ids=NEW_EFFECTS.keys())
 def test_new_effects_move_the_desktop_without_blanking_it(render, effect):
     draw, expected = render
     out = draw(effect, 0.5).astype(int)

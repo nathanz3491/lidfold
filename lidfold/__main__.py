@@ -14,8 +14,8 @@ def main() -> None:
     parser.add_argument("--max-angle", type=float, metavar="DEG",
                         help="max effect angle: estimated lid angle at which the effect is full")
     parser.add_argument("--effect", choices=EFFECT_NAMES,
-                        help="fold style: duo / ghost (ports of Mac Duo's), flat, iris, "
-                             "card, genie, fold, glass")
+                        help="fold style: duo / ghost (ports of Mac Duo's), or one of the "
+                             "others (see README)")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("calibrate", help="label the base edge at a few lid angles and train")
     sub.add_parser("retrain", help="retrain from the saved calibration frames")

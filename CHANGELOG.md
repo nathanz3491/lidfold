@@ -49,6 +49,25 @@ All notable changes to this project are documented here, following
   private.
 
 ### Added
+- Twelve more effects, for 20 in five rows of the panel (also in the tray
+  and `--effect`). Most follow Apple's own transitions:
+  - **Cube**: the Mac's user-switching cube;
+  - **Curl**: the Apple Books page turn;
+  - **Blinds**: closing venetian blinds;
+  - **Doorway**: Keynote's Doorway;
+  - **Reflect**: an Apple product shot on a glossy floor;
+  - **Stack**: Time Machine's stack of copies;
+  - **Twirl**: Keynote's Twirl;
+  - **Ripple**: Keynote's Droplet;
+  - **Aura**: the Apple Intelligence edge glow;
+  - **Island**: the Dynamic Island;
+  - **Prism**: Keynote's Color Planes;
+  - **Mosaic**: tiles spinning away from the hinge.
+
+  The earlier eight render pixel-identically, every new one is an exact
+  copy of the desktop at rest, and each takes under 2 ms of GPU time per
+  frame. Effect cards are a little more compact. The panel is capped at the
+  screen's work area and scrolls on a short screen.
 - Four effects in Apple's motion language, in the panel, tray and
   `--effect`:
   - **Card**: the iPhone app-close card over a blurred, dimmed desktop;
