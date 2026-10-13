@@ -35,6 +35,11 @@ MARGIN = 12
 HUD_SECONDS, BANNER_SECONDS = 1.4, 4.5
 STATE_JS = "window.lidfold && lidfold.update("
 REOPEN_GUARD = 0.35           # a tray click right after a blur-close means "close"
+# Pages normally load in ~1.5 s. After the previous UI was killed, WebView2
+# sometimes never loaded them, so tray clicks waited forever; past this
+# deadline the UI exits and the app starts a fresh one.
+LOAD_DEADLINE = 20.0
+TOOL_WINDOWS = ("panel", "hud", "banner")
 BLUR_GRACE = 0.5              # ignore focus loss this soon after opening (focus can bounce)
 
 DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWA_SYSTEMBACKDROP_TYPE = 20, 33, 38
@@ -145,6 +150,7 @@ class Ui:
         self.panel_opened_at = 0.0
         self.panel_open = False
         self.panel_wanted = False      # clicked before the panel window existed
+        self.loaded_names: set[str] = set()
         self.timers: dict[str, threading.Timer] = {}
         self.pending: dict[str, list[str]] = {}   # JS for pages that have not loaded yet
         self.pending_lock = threading.Lock()
@@ -247,6 +253,7 @@ class Ui:
             except Exception:
                 log.exception("styling %s failed", name)
         log.info("%s loaded (hwnd %s)", name, hwnd)
+        self.loaded_names.add(name)
         with self.pending_lock:
             queued = self.pending.pop(name, [])
         window = self.windows.get(name)
@@ -296,7 +303,7 @@ class Ui:
                                                     width=HUD[0], height=HUD[1], focus=False, **common)
         self.windows["banner"] = webview.create_window("lidfold banner", str(WEB / "banner.html"),
                                                        width=BANNER[0], height=BANNER[1], focus=False, **common)
-        for name in ("panel", "hud", "banner"):
+        for name in TOOL_WINDOWS:
             self.windows[name].events.loaded += (lambda n=name: self.loaded(n))
 
     def started(self) -> None:
@@ -305,7 +312,17 @@ class Ui:
         log.info("gui loop up")
         self.send({"cmd": "hello", "pid": os.getpid()})
         log.info("hello sent; serving")
+        watchdog = threading.Timer(LOAD_DEADLINE, self._check_loaded)
+        watchdog.daemon = True
+        watchdog.start()
         self.read()
+
+    def _check_loaded(self) -> None:
+        missing = [n for n in TOOL_WINDOWS if n not in self.loaded_names]
+        if missing:
+            log.warning("%s did not load within %.0f s; exiting so the app starts a fresh UI",
+                        ", ".join(missing), LOAD_DEADLINE)
+            os._exit(3)
 
     def read(self) -> None:
         while True:
@@ -520,28 +537,43 @@ def watch_app() -> None:
 
 
 def web_profile() -> Path:
-    """WebView2 profile folder, named after a hash of the UI's web files.
+    """A fresh WebView2 profile folder for this UI process.
 
-    A persistent profile, because private_mode builds a temp profile and
-    deletes old ones at startup, which kept the GUI thread busy for many
-    seconds. A persistent profile caches pages, so keying the folder on the
-    files' contents gives any change a fresh profile; old ones are removed
-    in the background."""
-    import hashlib
-    import shutil
+    A WebView2 browser process can outlive a UI that was killed, still
+    holding the UI's profile. A new UI on the same profile attaches to that
+    orphan and its pages never load, so tray clicks did nothing. So each UI
+    gets its own folder. In the background, orphaned browsers on older
+    lidfold profiles are ended and their folders removed.
+
+    (Not private_mode: that builds a temp profile and deletes old ones on
+    the GUI thread, which kept it busy for many seconds.)"""
     from ..config import data_dir
-    digest = hashlib.sha256()
-    for f in sorted(WEB.iterdir()):
-        digest.update(f.name.encode() + f.read_bytes())
     root = data_dir()
-    current = root / f"webview-{digest.hexdigest()[:10]}"
-
-    def clean():
-        for old in root.glob("webview*"):
-            if old != current and old.is_dir():
-                shutil.rmtree(old, ignore_errors=True)
-    threading.Thread(target=clean, daemon=True, name="clean-profiles").start()
+    current = root / f"webview-{os.getpid()}"
+    threading.Thread(target=_clean_profiles, args=(root, current), daemon=True,
+                     name="clean-profiles").start()
     return current
+
+
+def _clean_profiles(root: Path, current: Path) -> None:
+    import shutil
+    import subprocess
+    # Browser processes name their profile in --user-data-dir (WebView2 adds
+    # an EBWebView subfolder). Only lidfold makes folders under root\webview*.
+    quote = lambda path: str(path).replace("'", "''")
+    script = (
+        "Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe'\" | ForEach-Object { "
+        "if ($_.CommandLine -match '--user-data-dir=\"?([^\"]+)') { $d = $Matches[1]; "
+        f"if ($d -like '{quote(root)}\\webview*' -and $d -notlike '{quote(current)}\\*') "
+        "{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } } }")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True,
+                       timeout=30, creationflags=0x08000000)       # CREATE_NO_WINDOW
+    except (OSError, subprocess.SubprocessError):
+        log.exception("ending orphaned WebView2 processes failed")
+    for old in root.glob("webview*"):
+        if old != current and old.is_dir():
+            shutil.rmtree(old, ignore_errors=True)
 
 
 def free_port() -> int:

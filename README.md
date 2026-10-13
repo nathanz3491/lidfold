@@ -152,6 +152,12 @@ How the UI is built:
     whichever process's pages answered, such as an old install's.
   - The UI exits with its app, by watching the app's process handle, so a
     stuck UI can't linger as an orphan.
+  - Each UI gets its own WebView2 profile folder. A killed UI's browser
+    process can stay alive holding its profile. A new UI on the same
+    profile attaches to that orphan, and its pages never load. Orphans on
+    old lidfold profiles are ended in the background. As a last resort, a
+    UI whose pages have not loaded within 20 s exits, and the app starts a
+    fresh one.
   - Both processes log to `%APPDATA%\lidfold\lidfold.log`, including why
     the app exited: Quit from the tray or panel, the quit event (`lidfold
     quit` or an update), Ctrl+C, or an error with its traceback.

@@ -6,6 +6,18 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- After a forced stop or crash, tray clicks could do nothing until restart.
+  The killed UI's WebView2 browser process stayed alive, holding the
+  profile folder. A new UI on that folder attached to the orphan, and its
+  pages never loaded. Now:
+  - each UI gets its own profile folder;
+  - orphaned lidfold browsers are ended in the background (they also held
+    memory);
+  - a UI whose pages have not loaded within 20 s exits, and the app starts a
+    fresh one.
+
+  Verified by force-killing the app, then running end-to-end trials straight
+  after (4/4 pass; before, every one failed).
 - The app logs why it exits, and logs errors with their traceback. It runs
   windowless, so an exit used to leave no trace.
 - The panel could show another process's pages. Outside private mode
@@ -19,8 +31,8 @@ All notable changes to this project are documented here, following
 - The panel grew taller with every live update. It measured its
   window-filling container, so the window's own height fed back, adding
   2 px per update. It now measures the content and resizes only on change.
-  The WebView2 profile is keyed on the UI files' hash, so updated pages are
-  never served stale from cache.
+  Each UI starts with a fresh WebView2 profile, so updated pages are never
+  served stale from cache.
 - Clicking the tray icon did nothing. The UI froze through several
   blocking paths: page updates waiting on unloaded pages, styling inside
   pywebview's load sequence, pywin32 holding the GIL in `SetWindowLong`,
