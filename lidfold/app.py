@@ -79,6 +79,8 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
                 camera = CameraWorker(settings.camera, settings.camera_fps, lid)
                 camera.start()
                 changes.add("tracker")
+            if "fps" in changes and camera is not None:
+                camera.set_fps(settings.camera_fps)
             if "action" in changes and lid is not None:
                 lid.configure(settings.action_angle, settings.full_angle)
                 changes.add("tracker")

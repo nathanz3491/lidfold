@@ -88,8 +88,8 @@ grey with a padlock while locked. Left-click toggles the lock. The menu has:
 - **Starts at**: the degree of action (Calibrated, or 100°…50°).
 - **Effect**: Duo, Ghost, Flat or Iris. **Blur** and **Shading**: Off, a
   lighter setting, Mac Duo default, or a stronger setting. **Clear when the
-  lid is still**: 1 / 2 / 3 / 5 s, or Never. **Camera**: 0–3. All changes
-  apply live and are saved.
+  lid is still**: 1 / 2 / 3 / 5 s, or Never. **Camera**: 0–3. **Camera frame rate**: 10 / 15 / 20 / 30 fps
+  (see below). All changes apply live and are saved.
 - **Calibrate…**, **Live debug view…**, **Record a 15 s clip…**,
   **Preview the effect**: each runs as a separate process. lidfold pauses and
   closes the camera first, notifies you when the tool finishes, and reloads
@@ -244,6 +244,22 @@ leaves the desktop folded.
 - At rest: about 22% of one core, for the webcam, odometry, scene map and
   edge tracker.
 - While folding: 60 fps, with about 2 ms of GPU time for the shader.
+
+**Camera frame rate.** Webcams often ignore frame-rate requests: this one
+streams 30 fps over both MSMF and DirectShow, whatever is asked. lidfold
+therefore enforces the rate itself. Frames are scheduled evenly, and skipped
+frames are grabbed without decoding. The camera keeps streaming at 30 fps
+(same power, same light); what changes is lidfold's own CPU use. Measured
+live on this laptop, as a share of one core:
+
+| Setting | lidfold CPU | Tracking vs 30 fps on recorded closes |
+|---|---|---|
+| 30 fps (default) | 22% | reference |
+| 20 fps | 19% | ~1° mean difference |
+| 15 fps | 16% | ~1° mean, ≤4.5° max |
+| 10 fps | 9% | up to 3° mean, 9° max |
+
+15 fps is the sweet spot. Faster lid motion favours higher rates.
 
 **Why `cv2.setNumThreads(1)`?** On images this small, OpenCV's thread pool
 spun most of the time. Pinning it to one thread cut CPU use about 4×.

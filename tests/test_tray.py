@@ -64,3 +64,13 @@ def test_degree_of_action_menu(ctl):
     assert not sixty.enabled
     next(i for i in menu.items if i.text.startswith("Calibrated"))(tray.icon)
     assert ctl.settings.action_angle is None
+
+
+def test_camera_frame_rate_menu(ctl):
+    from lidfold.tray import Tray
+    tray = Tray(ctl)
+    menu = next(i for i in tray.icon.menu.items if i.text == "Camera frame rate").submenu
+    assert [i.text.split()[0] for i in menu.items] == ["10", "15", "20", "30"]
+    next(i for i in menu.items if i.text.startswith("15"))(tray.icon)
+    assert ctl.settings.camera_fps == 15 and ctl.take_changes() == {"fps"}
+    assert Settings.load().camera_fps == 15

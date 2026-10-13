@@ -17,7 +17,7 @@ def data_dir() -> Path:
 @dataclass
 class Settings:
     camera: int = 0
-    camera_fps: int = 30
+    camera_fps: int = 30           # frames analysed per second (10/15/20/30)
     effect: str = "duo"            # duo | ghost | flat | iris
     # Lid held still this long while the effect shows -> clear and rebase (0 = never).
     clear_after: float = 2.0

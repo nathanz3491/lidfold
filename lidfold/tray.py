@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pystray
 
+from .camera import FPS_CHOICES
 from .config import Settings, data_dir
 from .icon import tray_icon
 
@@ -128,6 +129,10 @@ class Controller:
         self.settings.action_angle = degrees
         self._change("action")
 
+    def set_camera_fps(self, fps: int) -> None:
+        self.settings.camera_fps = fps
+        self._change("fps")
+
     def set_camera(self, index: int) -> None:
         self.settings.camera = index
         self._change("camera")
@@ -208,6 +213,10 @@ class Tray:
                              radio(CLEAR, lambda: s.clear_after, ctl.set_clear_after)),
             pystray.MenuItem("Camera", radio([(i, f"Camera {i}") for i in CAMERAS],
                                              lambda: s.camera, ctl.set_camera)),
+            pystray.MenuItem("Camera frame rate", radio(
+                [(f, f"{f} fps" + (" (smoothest)" if f == max(FPS_CHOICES) else
+                                   " (lightest)" if f == min(FPS_CHOICES) else ""))
+                 for f in FPS_CHOICES], lambda: s.camera_fps, ctl.set_camera_fps)),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Calibrate...", lambda icon, item: ctl.launch(
                 "Calibration", ["calibrate"], reload_model=True)),
