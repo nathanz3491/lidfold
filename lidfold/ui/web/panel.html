@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="style.css">
 <style>
+  html, body { background: var(--surface); }
+  #root { height: auto; }
   .header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; }
   .app-icon { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
   .titles { flex: 1; min-width: 0; }
@@ -226,8 +228,15 @@ function update(s) {
   fit();
 }
 
+// Size the window to the content. #root is height:auto (not the window's
+// 100%), so this measures the content itself; measuring the window-filling
+// element fed the window's own height back and grew it 2 px per update.
+let lastFit = 0;
 function fit() {
-  requestAnimationFrame(() => api && api.fit($("#root").scrollHeight + 2));
+  requestAnimationFrame(() => {
+    const h = Math.ceil($("#root").getBoundingClientRect().height);
+    if (api && h !== lastFit) { lastFit = h; api.fit(h); }
+  });
 }
 
 function appear(s) {

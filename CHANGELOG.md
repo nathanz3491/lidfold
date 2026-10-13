@@ -6,6 +6,11 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- The panel grew taller with every live update. It measured its
+  window-filling container, so the window's own height fed back, adding
+  2 px per update. It now measures the content and resizes only on change.
+  The WebView2 profile is keyed on the UI files' hash, so updated pages are
+  never served stale from cache.
 - Clicking the tray icon did nothing. The UI froze through several
   blocking paths: page updates waiting on unloaded pages, styling inside
   pywebview's load sequence, pywin32 holding the GIL in `SetWindowLong`,

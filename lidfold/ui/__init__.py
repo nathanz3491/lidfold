@@ -370,7 +370,10 @@ class Ui:
         self.conceal("panel")
 
     def fit_panel(self, height: float) -> None:
-        self.panel_height = max(200, min(900, int(height)))
+        height = max(200, min(900, int(height)))
+        if height == self.panel_height:
+            return                         # no-op: state updates arrive ~5 times a second
+        self.panel_height = height
         if self.panel_open:
             s = scale()
             left, top, right, bottom = work_area()
@@ -514,12 +517,35 @@ def watch_app() -> None:
     threading.Thread(target=wait, daemon=True, name="watch-app").start()
 
 
+def web_profile() -> Path:
+    """WebView2 profile folder, named after a hash of the UI's web files.
+
+    A persistent profile, because private_mode builds a temp profile and
+    deletes old ones at startup, which kept the GUI thread busy for many
+    seconds. But a persistent profile caches pages: after a change, a stale
+    panel.html (with an old resize bug) was served. Keying the folder on the
+    files' contents means any change gets a fresh profile; old ones are
+    removed in the background."""
+    import hashlib
+    import shutil
+    from ..config import data_dir
+    digest = hashlib.sha256()
+    for f in sorted(WEB.iterdir()):
+        digest.update(f.name.encode() + f.read_bytes())
+    root = data_dir()
+    current = root / f"webview-{digest.hexdigest()[:10]}"
+
+    def clean():
+        for old in root.glob("webview*"):
+            if old != current and old.is_dir():
+                shutil.rmtree(old, ignore_errors=True)
+    threading.Thread(target=clean, daemon=True, name="clean-profiles").start()
+    return current
+
+
 def main() -> None:
     log.info("ui starting")
     watch_app()
     ui = Ui()
     ui.create()
-    # A persistent profile: private_mode builds a temp profile and deletes old
-    # ones at startup, which kept the GUI thread busy for many seconds.
-    from ..config import data_dir
-    webview.start(ui.started, private_mode=False, storage_path=str(data_dir() / "webview"))
+    webview.start(ui.started, private_mode=False, storage_path=str(web_profile()))
