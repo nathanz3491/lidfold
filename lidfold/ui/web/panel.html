@@ -43,6 +43,27 @@
   .footer { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px 11px; }
   .footer .links { display: flex; gap: 14px; }
 
+  .range { position: relative; height: 28px; margin-top: 2px; }
+  .range-track { position: absolute; left: 10px; right: 10px; top: 12px; height: 4px; border-radius: 2px;
+    background: var(--control); }
+  .range-fill { position: absolute; top: 0; height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, transparent), var(--accent)); }
+  .range input[type=range] { -webkit-appearance: none; appearance: none; position: absolute; inset: 0;
+    width: 100%; height: 28px; margin: 0; background: transparent; pointer-events: none; }
+  .range input[type=range]::-webkit-slider-runnable-track { height: 4px; background: transparent; }
+  .range input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; cursor: grab;
+    width: 20px; height: 20px; margin-top: -8px; border-radius: 50%; background: var(--knob);
+    box-shadow: 0 1px 4px rgba(0,0,0,.35), 0 0 0 0.5px rgba(0,0,0,.1); transition: transform .12s; }
+  .range input[type=range]:active::-webkit-slider-thumb { cursor: grabbing; transform: scale(1.12); }
+  .range #r-full::-webkit-slider-thumb { background: var(--accent); box-shadow: 0 0 0 3px var(--knob), 0 1px 5px rgba(0,0,0,.4); }
+  .range .marker { position: absolute; top: 3px; width: 2px; height: 22px; margin-left: -1px; border-radius: 1px;
+    background: var(--orange); opacity: 0; transition: left .18s ease, opacity .3s; z-index: 0; }
+  .range .marker.on { opacity: 1; }
+  .range-labels { margin-top: 4px; font-size: 11.5px; color: var(--text-2); }
+  .range-labels b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #reset-range { font-size: 11px; visibility: hidden; color: var(--accent); }
+  #reset-range:hover { color: var(--accent); filter: brightness(1.2); }
+  #reset-range.on { visibility: visible; }
   .notice { display: none; margin: 0 14px 4px; padding: 9px 11px; border-radius: 9px;
     background: color-mix(in srgb, var(--orange) 16%, transparent); font-size: 12px; }
   .notice.on { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -108,13 +129,20 @@
     </div>
 
     <div class="section">
-      <div class="label">Starts at <span class="value" id="lidnow"></span></div>
-      <div class="segmented" id="startmode">
-        <button data-mode="auto">Calibrated</button><button data-mode="custom">Custom</button>
+      <div class="label">Effect range <span class="value" id="lidnow"></span></div>
+      <!-- One track, open lid on the left, closed on the right: the effect starts
+           at the first handle and is full at the second; the fill between them
+           shows it building up. The orange line is the lid right now. -->
+      <div class="range" id="range">
+        <div class="range-track"><div class="range-fill" id="range-fill"></div></div>
+        <div class="marker" id="marker"></div>
+        <input type="range" id="r-start" min="0" max="115" step="1" aria-label="Effect starts at">
+        <input type="range" id="r-full" min="0" max="115" step="1" aria-label="Effect is full at">
       </div>
-      <div id="custom" style="margin-top:9px">
-        <div class="slider"><input type="range" id="action" min="50" max="120" step="1"><div class="marker" id="marker"></div></div>
-        <div class="row hint" style="margin-top:2px"><span id="action-v"></span><span id="peak"></span></div>
+      <div class="row range-labels">
+        <span><b id="start-v"></b> starts</span>
+        <button class="link" id="reset-range">Use calibration</button>
+        <span>full <b id="full-v"></b></span>
       </div>
     </div>
 
@@ -197,22 +225,17 @@ function update(s) {
     $(`#${key}-v`).textContent = Math.round(s[key] * 100) + "%";
   }
 
-  const custom = s.action_angle != null;
-  $$("#startmode button").forEach(b => b.classList.toggle("on", (b.dataset.mode === "custom") === custom));
-  $("#custom").style.display = custom ? "" : "none";
-  const action = $("#action");
-  action.min = Math.ceil(s.full_angle + 5);
-  if (dragging !== "action") action.value = custom ? s.action_angle : (s.calibrated_start_deg || 70);
-  fill(action);
-  $("#action-v").textContent = `Starts at ${action.value}°`;
-  $("#peak").textContent = `Full at ${Math.round(s.full_angle)}°`;
-  $("#lidnow").textContent = s.lid_deg == null ? "" :
-    `lid now ${s.lid_deg}°` + (custom ? "" : s.calibrated_start_deg ? ` · starts ${s.calibrated_start_deg}°` : "");
+  if (dragging !== "range") {
+    const start = s.action_angle ?? s.calibrated_start_deg ?? 90;
+    const full = s.max_angle ?? s.full_angle;
+    $("#r-start").value = toV(start); $("#r-full").value = toV(full);
+  }
+  paintRange();
+  $("#reset-range").classList.toggle("on", s.action_angle != null || s.max_angle != null);
+  $("#lidnow").textContent = s.lid_deg == null ? "" : `lid now ${s.lid_deg}\u00b0`;
   const marker = $("#marker");
   if (s.lid_deg != null) {
-    const lo = +action.min, hi = +action.max;
-    const p = Math.min(1, Math.max(0, (s.lid_deg - lo) / (hi - lo)));
-    marker.style.left = `calc(9px + ${p} * (100% - 18px))`;
+    marker.style.left = at(toV(s.lid_deg) / SPAN);
     marker.classList.add("on");
   } else marker.classList.remove("on");
 
@@ -245,6 +268,40 @@ function appear(s) {
   root.classList.remove("appear"); void root.offsetWidth; root.classList.add("appear");
 }
 
+// Effect range: lid degrees on a reversed axis (open on the left).
+const HI = 130, LO = 15, SPAN = HI - LO, GAP = 5;
+const toV = (deg) => Math.min(SPAN, Math.max(0, HI - deg));
+const toDeg = (v) => HI - v;
+const at = (p) => `calc(10px + ${Math.min(1, Math.max(0, p))} * (100% - 20px))`;
+function paintRange() {
+  const vs = +$("#r-start").value, vf = +$("#r-full").value;
+  const fillEl = $("#range-fill");
+  fillEl.style.left = `${vs / SPAN * 100}%`;
+  fillEl.style.width = `${(vf - vs) / SPAN * 100}%`;
+  $("#start-v").textContent = `${toDeg(vs)}\u00b0`;
+  $("#full-v").textContent = `${toDeg(vf)}\u00b0`;
+}
+function bindRange() {
+  const rs = $("#r-start"), rf = $("#r-full");
+  let last = 0;
+  const send = () => api.set("range", [toDeg(+rs.value), toDeg(+rf.value)]);
+  for (const [input, other, isStart] of [[rs, rf, true], [rf, rs, false]]) {
+    input.addEventListener("pointerdown", () => dragging = "range");
+    input.addEventListener("input", () => {
+      // Keep the start at least GAP degrees before the full point.
+      if (isStart && +input.value > +other.value - GAP) input.value = +other.value - GAP;
+      if (!isStart && +input.value < +other.value + GAP) input.value = +other.value + GAP;
+      paintRange();
+      const now = performance.now();
+      if (now - last > 80) { last = now; send(); }
+    });
+    input.addEventListener("change", () => { send(); dragging = null; });
+  }
+  $("#reset-range").onclick = () => {
+    state.action_angle = null; state.max_angle = null; update(state); api.set("range", [null, null]);
+  };
+}
+
 // Slider: send while dragging (throttled), keep pushed state from fighting it.
 function bindSlider(id, key, transform = (v) => +v) {
   const input = $("#" + id);
@@ -252,8 +309,7 @@ function bindSlider(id, key, transform = (v) => +v) {
   input.addEventListener("pointerdown", () => dragging = id);
   input.addEventListener("input", () => {
     fill(input);
-    if (id === "action") $("#action-v").textContent = `Starts at ${input.value}°`;
-    else $(`#${id}-v`).textContent = Math.round(input.value * 100) + "%";
+    $(`#${id}-v`).textContent = Math.round(input.value * 100) + "%";
     const now = performance.now();
     if (now - last > 80) { last = now; api.set(key, transform(input.value)); }
   });
@@ -266,12 +322,7 @@ window.addEventListener("pywebviewready", async () => {
   $$(".effect").forEach(b => b.onclick = () => { state.effect = b.dataset.effect; update(state); api.set("effect", b.dataset.effect); });
   bindSlider("blur", "blur");
   bindSlider("shadow", "shadow");
-  bindSlider("action", "action_angle");
-  $$("#startmode button").forEach(b => b.onclick = () => {
-    const custom = b.dataset.mode === "custom";
-    const value = custom ? Math.round(state.calibrated_start_deg || 70) : null;
-    state.action_angle = value; update(state); api.set("action_angle", value);
-  });
+  bindRange();
   $("#fps").onclick = (e) => { const v = e.target.dataset.v; if (v) { state.camera_fps = +v; update(state); api.set("camera_fps", +v); } };
   $("#clear").onclick = (e) => { const v = e.target.dataset.v; if (v) { state.clear_after = +v; update(state); api.set("clear_after", +v); } };
   $("#camera").onclick = (e) => { const v = e.target.dataset.v; if (v) { state.camera = +v; update(state); api.set("camera", +v); } };

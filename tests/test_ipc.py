@@ -94,3 +94,22 @@ def test_wrong_key_cannot_connect(bridge):
     with pytest.raises(AuthenticationError):
         Client(bridge.address, family="AF_PIPE", authkey=b"x" * 32)
     bridge._stop.set()
+
+
+def test_range_sets_both_ends(bridge, ctl):
+    bridge.handle({"cmd": "set", "key": "range", "value": [80, 30]})
+    assert (ctl.settings.action_angle, ctl.settings.max_angle) == (80, 30)
+    bridge.handle({"cmd": "set", "key": "range", "value": [None, None]})
+    assert (ctl.settings.action_angle, ctl.settings.max_angle) == (None, None)
+
+
+@pytest.mark.parametrize("message", [
+    {"cmd": "set", "key": "range", "value": [50, 48]},        # start not 5 deg above max
+    {"cmd": "set", "key": "range", "value": [80, 5]},         # max implausibly low
+    {"cmd": "set", "key": "max_angle", "value": 200},
+])
+def test_bad_ranges_are_rejected(bridge, ctl, message):
+    before = vars(ctl.settings).copy()
+    with pytest.raises((ValueError, TypeError)):
+        bridge.handle(message)
+    assert vars(ctl.settings) == before

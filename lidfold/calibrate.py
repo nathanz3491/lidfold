@@ -300,7 +300,7 @@ def _tracker(settings: Settings) -> LidTracker:
 
 
 def debug(settings: Settings) -> None:
-    lid = LidAngle(load_model(), settings.action_angle, settings.full_angle)
+    lid = LidAngle(load_model(), settings.action_angle, settings.full_angle, settings.max_angle)
     tracker = _tracker(settings)
     cap = open_camera(settings.camera, settings.camera_fps)
     try:
@@ -353,7 +353,7 @@ def record(settings: Settings, seconds: float) -> Path:
 
 def replay(path: Path, settings: Settings) -> Path:
     """Run the full estimator over a recording; write an annotated video and a CSV."""
-    lid = LidAngle(load_model(), settings.action_angle, settings.full_angle)
+    lid = LidAngle(load_model(), settings.action_angle, settings.full_angle, settings.max_angle)
     tracker = _tracker(settings)
     cap = cv2.VideoCapture(str(path))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30

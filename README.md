@@ -70,16 +70,24 @@ lidfold debug       # optional: see what the camera detects
 lidfold run         # the effect (the installed app starts this at sign-in)
 ```
 
-**Degree of action.** The estimated lid angle at which the effect starts,
-in real degrees. Absolute angles are anchored at your calibrated full stop,
-taken as 45° (`full_angle` in `settings.json`; change it if your full stop
-is at a different angle). The estimate is most accurate there, because the
-base edge pins it down; above it, motion tracking adds real degrees. The
-tray tooltip shows the live estimate ("lid ~72 deg"), so you can pick a
-value. Set it with the tray's **Starts at** menu, `--action-angle 70`, or
-`action_angle` in `settings.json`. It applies to every effect, which then
-peaks at the full stop. Unset (Calibrated), duo starts at the calibrated
-start stop and ghost starts from rest.
+**Effect range.** Two estimated lid angles, in real degrees:
+- the **degree of action**, where the effect starts;
+- the **max effect angle**, where it is full.
+
+Absolute angles are anchored at your calibrated full stop, taken as 45°
+(`full_angle` in `settings.json`; change it if your full stop is at a
+different angle). The estimate is most accurate there, because the base
+edge pins it down; above it, motion tracking adds real degrees. The panel
+and the tray tooltip show the live estimate ("lid ~72 deg"), so you can
+pick values. Set them with the panel's **Effect range** slider, the tray's
+**Starts at** and **Max effect at** menus, `--action-angle 70 --max-angle
+35`, or `action_angle` and `max_angle` in `settings.json`. The start stays
+at least 5° above the max.
+
+Both apply to every effect. Unset (Calibrated), duo runs from the
+calibrated start stop to the full stop, and ghost tilts from rest to the
+full stop. With only a max set, duo starts at the calibrated start and
+ghost still starts from rest.
 
 **The panel.** `run` puts a laptop icon in the tray: blue while active,
 grey with a padlock while paused. **Left-click it** for the panel, a
@@ -89,9 +97,10 @@ macOS-style popover above the tray that closes when you click elsewhere:
   ("Active · lid 72°", "Paused", "Calibration running…").
 - **Effect** cards: Duo, Ghost, Flat, Iris.
 - **Blur** and **Shading** sliders; changes apply live.
-- **Starts at**: Calibrated, or Custom with a slider. An orange marker on
-  the slider shows the lid's current angle, so you can tilt the lid and set
-  the start right there.
+- **Effect range**: one track from open (left) to closed (right) with two
+  handles: where the effect starts and where it is full (the blue one). An
+  orange marker shows the lid's current angle, so you can tilt the lid and
+  set either end right there. **Use calibration** clears both.
 - **Analysis rate** (10–30 fps) and **Clear when the lid is still** (1–5 s
   or Never).
 - **Preview** and **Calibrate…**; **Open at sign-in**; **Advanced** holds
@@ -171,8 +180,9 @@ How the UI is built:
 - `replay <clip.mp4>`: write an annotated video and a CSV trace for tuning.
 - `simulate [--seconds N] [--still]`: preview the effect with a scripted lid
   and no camera.
-- Global `--effect duo|ghost|flat|iris` and `--camera N`. These, plus `clear_after`,
-  `blur` and `shadow`, can be saved in `%APPDATA%\lidfold\settings.json`.
+- Global `--effect duo|ghost|flat|iris`, `--camera N`, `--action-angle DEG`
+  and `--max-angle DEG`. These, plus `clear_after`, `blur` and `shadow`, can
+  be saved in `%APPDATA%\lidfold\settings.json`.
 
 ## Test
 

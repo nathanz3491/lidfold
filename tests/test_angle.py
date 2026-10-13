@@ -147,3 +147,26 @@ def test_degree_of_action_keeps_room_above_the_full_stop(lid):
     assert lid.action_phi == pytest.approx(75.0)
     lid.configure(None)
     assert lid.action_phi is None
+
+
+def test_max_effect_angle_moves_the_full_point(lid):
+    # CAL: full stop phi 80 = 45 deg; calibrated start phi 50 (= 75 deg).
+    lid.configure(None, max_angle=35.0)               # full at 35 deg (phi 90), calibrated start
+    r = step(lid, deg=1.0, n=80)                      # phi 80 = 45 deg
+    assert r.closure == pytest.approx((80 - 50) / (90 - 50))
+    assert r.ghost == pytest.approx(80 / 90)          # ghost: from rest to the max angle
+    r = step(lid, deg=1.0, n=10)                      # phi 90 = 35 deg
+    assert r.closure == pytest.approx(1.0)
+
+
+def test_start_and_max_together(lid):
+    lid.configure(70.0, max_angle=30.0)               # start phi 55, full phi 95
+    r = step(lid, deg=1.0, n=75)
+    assert r.closure == pytest.approx((75 - 55) / 40)
+    assert r.drive("ghost") == r.closure
+    assert lid.ghost_tilt_span == pytest.approx(40.0)
+
+
+def test_start_never_crosses_the_max(lid):
+    lid.configure(40.0, max_angle=38.0)               # start would sit below max + 5
+    assert lid.action_phi == pytest.approx(lid.max_phi - 5)

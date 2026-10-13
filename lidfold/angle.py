@@ -137,10 +137,10 @@ class LidModel:
 
 class LidAngle:
     def __init__(self, model: LidModel, action_angle: float | None = None,
-                 full_angle: float = FULL_ANGLE):
+                 full_angle: float = FULL_ANGLE, max_angle: float | None = None):
         self.model = model
         self.odometry = PitchOdometry()
-        self.configure(action_angle, full_angle)
+        self.configure(action_angle, full_angle, max_angle)
         self.reset()
 
     # ------------------------------------------------- degree of action
@@ -148,25 +148,34 @@ class LidAngle:
     # angle the user knows (~45 deg). That is where the estimate is most
     # accurate (the base edge pins phi down there); above it, phi adds real
     # degrees from odometry and the scene map.
-    def configure(self, action_angle: float | None, full_angle: float = FULL_ANGLE) -> None:
-        """Called from the render loop; plain float stores are atomic."""
+    def configure(self, action_angle: float | None, full_angle: float = FULL_ANGLE,
+                  max_angle: float | None = None) -> None:
+        """Degree of action (start) and max effect angle (full), in estimated
+        lid degrees; None keeps the calibrated stop. Called from the render
+        loop; the attribute stores are atomic."""
         self.full_angle = float(full_angle)
-        self.action_phi = None if action_angle is None else self.phi_at(action_angle)
+        self.max_phi = self.model.angles.phi_full if max_angle is None else self._phi(max_angle)
+        self.action_phi = (None if action_angle is None
+                           else min(self.max_phi - MIN_ACTION_SPAN, self._phi(action_angle)))
+        self.custom = action_angle is not None or max_angle is not None
 
     def lid_degrees(self, phi: float) -> float:
         return self.full_angle + (self.model.angles.phi_full - phi)
 
-    def phi_at(self, degrees: float) -> float:
-        """phi where the estimated lid angle equals `degrees` (kept >= 5 deg above full)."""
-        return min(self.model.angles.phi_full - MIN_ACTION_SPAN,
-                   self.model.angles.phi_full + self.full_angle - degrees)
+    def _phi(self, degrees: float) -> float:
+        """phi where the estimated lid angle equals `degrees`."""
+        return self.model.angles.phi_full + self.full_angle - degrees
+
+    def _span(self, start: float) -> tuple[float, float]:
+        start = min(start, self.max_phi - MIN_ACTION_SPAN)
+        return start, self.max_phi - start
 
     @property
     def ghost_tilt_span(self) -> float:
         """Real degrees the ghost tilts over from start to maximum."""
-        if self.action_phi is None:
+        if not self.custom:
             return self.model.angles.ghost_span
-        return self.model.angles.phi_full - self.action_phi
+        return self._span(self.action_phi if self.action_phi is not None else 0.0)[1]
 
     def reset(self) -> None:
         self.phi = 0.0
@@ -215,19 +224,23 @@ class LidAngle:
             gain = ANCHOR_GAIN_MOVING if abs(motion.degrees) > 0.5 else ANCHOR_GAIN
             self.phi += gain * (anchor - self.phi)
         dark = min(1.0, base.dark_gated * 1.15)
-        phi_full = self.model.angles.phi_full
-        if self.action_phi is None:
+        ramp = lambda start, span: min(1.0, max(0.0, (self.phi - start) / span))
+        if not self.custom:
             closure = max(self.model.angles.closure(self.phi), dark)
         else:
-            closure = max(min(1.0, max(0.0, (self.phi - self.action_phi) / (phi_full - self.action_phi))), dark)
+            start = self.action_phi if self.action_phi is not None else self.model.angles.phi_start
+            closure = max(ramp(*self._span(start)), dark)
         # Ghost follows Mac Duo: it starts the moment the lid leaves rest and
         # tilts by the real rotation since then (phi, in degrees; LidTracker
         # rebases on wherever the lid rests). It peaks at the calibrated full
         # stop, where the user wants the effect biggest (~45 deg), instead of
         # Mac Duo's 100-degree sweep.
         ghost = max(min(1.0, max(0.0, self.phi) / self.model.angles.ghost_span), dark)
-        if self.action_phi is not None:
-            ghost = closure            # a set degree of action applies to every effect
+        if self.custom:
+            # A set start applies to every effect; with only a max angle set,
+            # ghost still starts from rest, as in Mac Duo.
+            ghost = (closure if self.action_phi is not None
+                     else max(ramp(*self._span(0.0)), dark))
         return AngleReading(self.phi, closure, base, motion, scene_hit, ghost,
                             self.lid_degrees(self.phi))
 

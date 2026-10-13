@@ -74,3 +74,13 @@ def test_camera_frame_rate_menu(ctl):
     next(i for i in menu.items if i.text.startswith("15"))(tray.icon)
     assert ctl.settings.camera_fps == 15 and ctl.take_changes() == {"fps"}
     assert Settings.load().camera_fps == 15
+
+
+def test_max_effect_menu(ctl):
+    from lidfold.tray import Tray
+    tray = Tray(ctl)
+    menu = next(i for i in tray.icon.menu.items if i.text == "Max effect at").submenu
+    next(i for i in menu.items if i.text == "35 deg")(tray.icon)
+    assert ctl.settings.max_angle == 35.0 and "action" in ctl.take_changes()
+    ctl.settings.action_angle = 50.0
+    assert not next(i for i in menu.items if i.text == "50 deg").enabled   # must stay 5 below start

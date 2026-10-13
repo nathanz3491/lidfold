@@ -86,7 +86,7 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
                 camera = None
             if want_camera and camera is None:
                 ctl.camera_idle.clear()
-                lid = LidAngle(model, settings.action_angle, settings.full_angle)
+                lid = LidAngle(model, settings.action_angle, settings.full_angle, settings.max_angle)
                 ctl.calibrated_start_deg = lid.lid_degrees(model.angles.phi_start)
                 camera = CameraWorker(settings.camera, settings.camera_fps, lid)
                 camera.start()
@@ -94,7 +94,7 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
             if "fps" in changes and camera is not None:
                 camera.set_fps(settings.camera_fps)
             if "action" in changes and lid is not None:
-                lid.configure(settings.action_angle, settings.full_angle)
+                lid.configure(settings.action_angle, settings.full_angle, settings.max_angle)
                 changes.add("tracker")
             if camera is None:
                 ctl.camera_idle.set()

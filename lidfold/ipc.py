@@ -159,7 +159,7 @@ class UiBridge:
             "version": __version__, "locked": s.locked, "effect": s.effect,
             "blur": s.blur, "shadow": s.shadow, "clear_after": s.clear_after,
             "camera": s.camera, "camera_fps": s.camera_fps, "fps_choices": list(FPS_CHOICES),
-            "action_angle": s.action_angle, "full_angle": s.full_angle,
+            "action_angle": s.action_angle, "full_angle": s.full_angle, "max_angle": s.max_angle,
             "calibrated_start_deg": None if c.calibrated_start_deg is None else round(c.calibrated_start_deg),
             "lid_deg": None if c.lid_deg is None else round(c.lid_deg),
             "status": c.status, "busy": c.busy, "calibrated": c.calibrated,
@@ -194,7 +194,19 @@ class UiBridge:
             elif key == "camera_fps" and int(value) in FPS_CHOICES:
                 c.set_camera_fps(int(value))
             elif key == "action_angle":
-                c.set_action_angle(None if value is None else _float_in(value, c.settings.full_angle + 5, 170.0))
+                c.set_action_angle(None if value is None else _float_in(value, c.max_deg() + 5, 170.0))
+            elif key == "max_angle":
+                c.set_max_angle(None if value is None else _float_in(value, 10.0, c.start_deg() - 5))
+            elif key == "range":                  # both ends at once, from the range slider
+                start, end = value
+                if start is None and end is None:
+                    c.settings.max_angle = None
+                    c.set_action_angle(None)
+                else:
+                    end = _float_in(end, 10.0, 160.0)
+                    start = _float_in(start, end + 5, 170.0)
+                    c.settings.max_angle = end
+                    c.set_action_angle(start)
             else:
                 raise ValueError(f"{key}={value!r}")
         elif cmd == "launch":

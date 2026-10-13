@@ -11,6 +11,8 @@ def main() -> None:
     parser.add_argument("--camera", type=int, help="camera index (default from settings, 0)")
     parser.add_argument("--action-angle", type=float, metavar="DEG",
                         help="degree of action: estimated lid angle at which the effect starts")
+    parser.add_argument("--max-angle", type=float, metavar="DEG",
+                        help="max effect angle: estimated lid angle at which the effect is full")
     parser.add_argument("--effect", choices=["duo", "ghost", "flat", "iris"],
                         help="fold style: duo / ghost (ports of Mac Duo's), flat, iris")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -44,6 +46,8 @@ def main() -> None:
         settings.effect = args.effect
     if args.action_angle is not None:
         settings.action_angle = args.action_angle
+    if args.max_angle is not None:
+        settings.max_angle = args.max_angle
 
     if args.command == "calibrate":
         from .calibrate import calibrate

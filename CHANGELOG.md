@@ -35,6 +35,12 @@ All notable changes to this project are documented here, following
   private.
 
 ### Added
+- Max effect angle: the lid angle at which the effect is full, beside the
+  degree of action where it starts. Set both on the panel's new **Effect
+  range** slider (two handles on one open-to-closed track, with the live
+  lid marker), the tray's **Max effect at** menu, `--max-angle`, or
+  `max_angle` in `settings.json`. Unset, the calibrated full stop is used,
+  so the current behaviour is unchanged.
 - macOS-style UI:
   - a popover panel on tray left-click: on/off switch, live status, effect
     cards, sliders, a "Starts at" slider with a live lid-angle marker,

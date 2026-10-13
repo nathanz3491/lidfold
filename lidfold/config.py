@@ -32,6 +32,9 @@ class Settings:
     # None = calibrated start stop (ghost: from rest).
     action_angle: float | None = None
     full_angle: float = 45.0       # real lid angle at the calibrated full stop
+    # Max effect angle: estimated lid angle (deg) at which the effect is full.
+    # None = calibrated full stop.
+    max_angle: float | None = None
 
     @classmethod
     def load(cls) -> "Settings":

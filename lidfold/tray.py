@@ -25,6 +25,7 @@ SHADOW = [(0.0, "Off"), (0.35, "Light"), (0.65, "Mac Duo default"), (0.9, "Deep"
 CLEAR = [(1.0, "1 s"), (2.0, "2 s"), (3.0, "3 s"), (5.0, "5 s"), (0.0, "Never")]
 CAMERAS = range(4)
 ACTION = [100.0, 90.0, 80.0, 70.0, 65.0, 60.0, 55.0, 50.0]
+MAX_ANGLE = [60.0, 55.0, 50.0, 45.0, 40.0, 35.0, 30.0, 25.0, 20.0]
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "lidfold"
@@ -152,6 +153,19 @@ class Controller:
         self.settings.action_angle = degrees
         self._change("action")
 
+    def set_max_angle(self, degrees: float | None) -> None:
+        self.settings.max_angle = degrees
+        self._change("action")
+
+    def start_deg(self) -> float:
+        """The effective start angle: custom, else the calibrated start."""
+        if self.settings.action_angle is not None:
+            return self.settings.action_angle
+        return self.calibrated_start_deg if self.calibrated_start_deg is not None else 90.0
+
+    def max_deg(self) -> float:
+        return self.settings.max_angle if self.settings.max_angle is not None else self.settings.full_angle
+
     def set_camera_fps(self, fps: int) -> None:
         self.settings.camera_fps = fps
         self._change("fps")
@@ -234,6 +248,7 @@ class Tray:
             pystray.MenuItem("Blur", radio(BLUR, lambda: s.blur, ctl.set_blur)),
             pystray.MenuItem("Shading", radio(SHADOW, lambda: s.shadow, ctl.set_shadow)),
             pystray.MenuItem("Starts at (degree of action)", self._action_menu()),
+            pystray.MenuItem("Max effect at", self._max_menu()),
             pystray.MenuItem("Clear when the lid is still",
                              radio(CLEAR, lambda: s.clear_after, ctl.set_clear_after)),
             pystray.MenuItem("Camera", radio([(i, f"Camera {i}") for i in CAMERAS],
@@ -273,13 +288,31 @@ class Tray:
             return lambda item: s.action_angle == value
 
         def allowed(value):
-            # The effect needs room to build before its maximum at the full stop.
-            return lambda item: value >= s.full_angle + 5
+            # The effect needs room to build before its maximum.
+            return lambda item: value >= ctl.max_deg() + 5
 
         return pystray.Menu(
             pystray.MenuItem(calibrated, act(None), checked=is_current(None), radio=True),
             *(pystray.MenuItem(f"{deg:.0f} deg", act(deg), checked=is_current(deg), radio=True,
                                enabled=allowed(deg)) for deg in ACTION))
+
+    def _max_menu(self) -> pystray.Menu:
+        ctl, s = self.ctl, self.ctl.settings
+
+        def act(value):
+            return lambda icon, item: ctl.set_max_angle(value)
+
+        def is_current(value):
+            return lambda item: s.max_angle == value
+
+        def allowed(value):
+            return lambda item: value <= ctl.start_deg() - 5
+
+        return pystray.Menu(
+            pystray.MenuItem(lambda item: f"Calibrated (~{s.full_angle:.0f} deg)", act(None),
+                             checked=is_current(None), radio=True),
+            *(pystray.MenuItem(f"{deg:.0f} deg", act(deg), checked=is_current(deg), radio=True,
+                               enabled=allowed(deg)) for deg in MAX_ANGLE))
 
     def start(self) -> None:
         threading.Thread(target=self.icon.run, daemon=True, name="tray").start()
