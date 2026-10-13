@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  .surface { display: flex; flex-direction: column; }
+  .content { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 40px 28px; text-align: center; }
+  .hero { width: 96px; height: 96px; filter: drop-shadow(0 6px 16px rgba(64, 120, 255, .35)); }
+  h1 { font: 700 26px/1.15 var(--display); margin: 16px 0 6px; letter-spacing: -0.01em; }
+  .lede { color: var(--text-2); font-size: 14px; max-width: 360px; margin: 0; }
+  .steps { margin: 26px 0 0; width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .step { display: flex; gap: 14px; align-items: flex-start; }
+  .num { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .step b { display: block; font-size: 14px; }
+  .step span { color: var(--text-2); font-size: 12.5px; }
+  .actions { margin-top: auto; display: flex; gap: 10px; width: 100%; padding-top: 24px; }
+  .actions .button { flex: 1; padding: 9px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="surface window">
+  <div class="titlebar pywebview-drag-region">
+    <button class="traffic close" id="close" title="Close"></button>
+    <span class="traffic off"></span><span class="traffic off"></span>
+  </div>
+  <div class="content">
+    <svg class="hero" viewBox="0 0 64 64" aria-hidden="true">
+      <defs><linearGradient id="l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#765cff"/><stop offset="1" stop-color="#4094ff"/></linearGradient>
+      <radialGradient id="g" cx=".5" cy=".42" r=".45"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="#1c1c22"/>
+      <path d="M17 44 L47 44 L51 14 L13 14 Z" fill="url(#l)"/><path d="M17 44 L47 44 L51 14 L13 14 Z" fill="url(#g)"/>
+      <path d="M11 46 H53 L56 52 H8 Z" fill="#d6dbe3"/>
+    </svg>
+    <h1>Welcome to lidfold</h1>
+    <p class="lede">Your desktop folds away as you close the lid, the way Mac Duo does it on a MacBook, using your webcam instead of a hinge sensor.</p>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div><b>Calibrate once</b>
+        <span>Step out of the camera's view, tilt the lid smoothly through three stops, then click the edge of the laptop base. About a minute.</span></div></div>
+      <div class="step"><div class="num">2</div><div><b>Pick your look</b>
+        <span>Click the lidfold icon in the taskbar tray for effects, blur and where the effect starts.</span></div></div>
+      <div class="step"><div class="num">3</div><div><b>Close the lid</b>
+        <span>Pause any time with <kbd id="hotkey">Ctrl+Alt+Shift+F</kbd>.</span></div></div>
+    </div>
+    <div class="actions">
+      <button class="button" id="later">Later</button>
+      <button class="button primary" id="go">Calibrate now</button>
+    </div>
+  </div>
+</div>
+<script>
+window.lidfold = { update(s) { if (s.hotkey) document.getElementById("hotkey").textContent = s.hotkey; } };
+window.addEventListener("pywebviewready", () => {
+  const api = pywebview.api;
+  document.getElementById("close").onclick = () => api.close("welcome");
+  document.getElementById("later").onclick = () => api.close("welcome");
+  document.getElementById("go").onclick = () => { api.launch("calibrate"); api.close("welcome"); };
+});
+</script>
+</body>
+</html>

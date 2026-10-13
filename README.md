@@ -81,23 +81,49 @@ value. Set it with the tray's **Starts at** menu, `--action-angle 70`, or
 peaks at the full stop. Unset (Calibrated), duo starts at the calibrated
 start stop and ghost starts from rest.
 
-**System tray.** `run` puts a laptop icon in the tray: blue while active,
-grey with a padlock while locked. Left-click toggles the lock. The menu has:
-- **Locked**: effect off *and* camera released, so the webcam light goes
-  off. The lock state is remembered.
-- **Starts at**: the degree of action (Calibrated, or 100°…50°).
-- **Effect**: Duo, Ghost, Flat or Iris. **Blur** and **Shading**: Off, a
-  lighter setting, Mac Duo default, or a stronger setting. **Clear when the
-  lid is still**: 1 / 2 / 3 / 5 s, or Never. **Camera**: 0–3. **Camera frame rate**: 10 / 15 / 20 / 30 fps
-  (see below). All changes apply live and are saved.
-- **Calibrate…**, **Live debug view…**, **Record a 15 s clip…**,
-  **Preview the effect**: each runs as a separate process. lidfold pauses and
-  closes the camera first, notifies you when the tool finishes, and reloads
-  the calibration afterwards.
-- **Start with Windows** (an `HKCU\…\Run` entry pointing at
-  `lidfoldw.exe run`), **Open settings folder**, **Quit**.
+**The panel.** `run` puts a laptop icon in the tray: blue while active,
+grey with a padlock while paused. **Left-click it** for the panel, a
+macOS-style popover above the tray that closes when you click elsewhere:
 
-Only one lidfold runs at a time. `run --no-tray` skips the icon.
+- Header: on/off switch, and a status pill with the live lid angle
+  ("Active · lid 72°", "Paused", "Calibration running…").
+- **Effect** cards: Duo, Ghost, Flat, Iris.
+- **Blur** and **Shading** sliders; changes apply live.
+- **Starts at**: Calibrated, or Custom with a slider. An orange marker on
+  the slider shows the lid's current angle, so you can tilt the lid and set
+  the start right there.
+- **Analysis rate** (10–30 fps) and **Clear when the lid is still** (1–5 s
+  or Never).
+- **Preview** and **Calibrate…**; **Open at sign-in**; **Advanced** holds
+  the camera index, Debug view, Record 15 s and the settings folder.
+
+Also:
+- **Ctrl+Alt+Shift+F** pauses and resumes from anywhere, after Mac Duo's
+  ⌃⌥⌘F. A HUD confirms it in the middle of the screen, like the macOS volume
+  HUD.
+- Results (calibration saved, a tool stopped) appear as banners at the top
+  right.
+- The first start without a calibration opens a **Welcome** window that
+  walks you through it. **About** is in the panel footer.
+- Right-click the tray icon for the classic menu with the same options.
+- Pausing also **releases the camera**, so the webcam light goes off. Only
+  one lidfold runs at a time; `run --no-tray` runs without the tray and
+  panel.
+
+How the UI is built:
+- The panel, HUD, banners and windows run in a **companion process**
+  (`lidfold ui`, started automatically). They are web pages in the system
+  WebView2, made frameless, with Windows 11 rounded corners and backdrop
+  applied through DWM.
+- A separate process is used because the effect's render loop needs the
+  main thread for OpenGL, and so does any GUI toolkit. It also means a UI
+  problem can never stop the effect.
+- The two processes talk over a named pipe authenticated with a per-run
+  random key. Every request from the UI is validated before it changes
+  anything.
+- All windows are created hidden at startup, so the panel opens instantly.
+- The surfaces are nearly opaque: DWM's acrylic tint came out light even in
+  dark mode for these windows, so the look doesn't rely on it.
 
 **Calibration** (one slow sweep, then click-to-label):
 

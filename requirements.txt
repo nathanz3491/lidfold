@@ -6,4 +6,5 @@ moderngl
 pywin32
 pystray
 pillow
+pywebview
 pytest

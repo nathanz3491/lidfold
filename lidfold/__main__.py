@@ -28,6 +28,7 @@ def main() -> None:
                                           "Start Menu, start at sign-in")
     inst.add_argument("--no-start", action="store_true", help="do not launch it afterwards")
     sub.add_parser("quit", help="ask a running lidfold to exit")
+    sub.add_parser("ui", help=argparse.SUPPRESS)            # companion UI, started by `run`
     uninst = sub.add_parser("uninstall", help="remove the installed app, shortcut, PATH entry, autostart")
     uninst.add_argument("--purge", action="store_true", help="also delete calibration and settings")
     sim = sub.add_parser("simulate", help="preview the effect with a scripted lid")
@@ -60,6 +61,9 @@ def main() -> None:
     elif args.command == "install":
         from .install import install
         install(start=not args.no_start)
+    elif args.command == "ui":
+        from .ui import main as ui_main
+        ui_main()
     elif args.command == "quit":
         from .install import stop_running
         print("lidfold stopped" if stop_running() else "lidfold is not running")

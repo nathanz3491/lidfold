@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  .surface { display: flex; flex-direction: column; }
+  .content { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 30px 22px; }
+  .icon { width: 76px; height: 76px; filter: drop-shadow(0 4px 12px rgba(64, 120, 255, .3)); }
+  h1 { font: 700 20px var(--display); margin: 12px 0 2px; }
+  .version { color: var(--text-3); font-size: 12px; }
+  p { color: var(--text-2); font-size: 12.5px; margin: 14px 0 0; }
+  .credit { margin-top: auto; font-size: 11px; color: var(--text-3); }
+  .credit a { color: var(--accent); cursor: pointer; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="surface window">
+  <div class="titlebar pywebview-drag-region">
+    <button class="traffic close" id="close" title="Close"></button>
+    <span class="traffic off"></span><span class="traffic off"></span>
+  </div>
+  <div class="content">
+    <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+      <defs><linearGradient id="l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#765cff"/><stop offset="1" stop-color="#4094ff"/></linearGradient></defs>
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="#1c1c22"/>
+      <path d="M17 44 L47 44 L51 14 L13 14 Z" fill="url(#l)"/><path d="M11 46 H53 L56 52 H8 Z" fill="#d6dbe3"/>
+    </svg>
+    <h1>lidfold</h1>
+    <div class="version" id="version"></div>
+    <p>Fold-away desktop effect for Windows laptops, driven by the webcam: room motion, a scene map from calibration, and the laptop base's edge.</p>
+    <div class="credit">Duo and Ghost effects ported from
+      <a id="macduo">Mac Duo</a> by Dhananjay Bhosale (MIT).</div>
+  </div>
+</div>
+<script>
+window.lidfold = { update(s) { document.getElementById("version").textContent = "Version " + s.version; } };
+window.addEventListener("pywebviewready", async () => {
+  const api = pywebview.api;
+  document.getElementById("close").onclick = () => api.close("about");
+  document.getElementById("macduo").onclick = () => api.open_link("https://github.com/DhananjayBhosale/MacDuo");
+  const s = await api.state(); if (s && s.version) window.lidfold.update(s);
+});
+</script>
+</body>
+</html>

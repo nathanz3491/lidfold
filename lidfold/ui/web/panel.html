@@ -1,0 +1,284 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  .header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; }
+  .app-icon { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+  .titles { flex: 1; min-width: 0; }
+  .title { font: 600 15px/1.2 var(--display); }
+
+  .effects { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .effect {
+    border: 0; padding: 7px 0 6px; border-radius: 9px; cursor: pointer;
+    background: var(--card); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--text-2);
+    transition: background .15s, box-shadow .15s, color .15s, transform .08s;
+  }
+  .effect:hover { background: var(--card-hover); color: var(--text); }
+  .effect:active { transform: scale(.97); }
+  .effect.on { color: var(--text); font-weight: 600;
+    background: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--accent); }
+  .effect svg { width: 46px; height: 30px; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .row + .row { margin-top: 10px; }
+  .row .name { color: var(--text); }
+  .stack > * + * { margin-top: 10px; }
+  .buttons { display: flex; gap: 8px; }
+  .buttons .button { flex: 1; }
+
+  details summary { list-style: none; cursor: pointer; color: var(--text-2); font-size: 12px;
+    display: flex; align-items: center; gap: 6px; }
+  details summary::before { content: ""; width: 0; height: 0; border-style: solid;
+    border-width: 4px 0 4px 6px; border-color: transparent transparent transparent currentColor;
+    transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details .stack { margin-top: 10px; }
+
+  .footer { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px 11px; }
+  .footer .links { display: flex; gap: 14px; }
+
+  .notice { display: none; margin: 0 14px 4px; padding: 9px 11px; border-radius: 9px;
+    background: color-mix(in srgb, var(--orange) 16%, transparent); font-size: 12px; }
+  .notice.on { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .dim { opacity: .45; pointer-events: none; transition: opacity .2s; }
+</style>
+</head>
+<body>
+<div class="surface" id="root">
+
+  <div class="header">
+    <svg class="app-icon" viewBox="0 0 64 64" aria-hidden="true">
+      <defs><linearGradient id="lid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#765cff"/><stop offset="1" stop-color="#4094ff"/></linearGradient>
+        <radialGradient id="glow" cx=".5" cy=".42" r=".45"><stop offset="0" stop-color="#fff" stop-opacity=".55"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="#1c1c22"/>
+      <path d="M17 44 L47 44 L51 14 L13 14 Z" fill="url(#lid)"/>
+      <path d="M17 44 L47 44 L51 14 L13 14 Z" fill="url(#glow)"/>
+      <path d="M11 46 H53 L56 52 H8 Z" fill="#d6dbe3"/>
+    </svg>
+    <div class="titles">
+      <div class="title">lidfold</div>
+      <div class="pill" id="pill"><span class="dot" id="dot"></span><span id="status">Connecting...</span></div>
+    </div>
+    <button class="switch" id="power" title="Pause or resume"></button>
+  </div>
+
+  <div class="notice" id="notice">
+    <span>Not calibrated yet. lidfold needs one calibration to know your lid.</span>
+    <button class="button primary" data-launch="calibrate">Calibrate</button>
+  </div>
+
+  <div id="controls">
+    <div class="section">
+      <div class="label">Effect</div>
+      <div class="effects">
+        <button class="effect" data-effect="duo" title="Swells around the hinge, like Mac Duo">
+          <svg viewBox="0 0 46 30"><rect x="6" y="3" width="34" height="22" rx="3" fill="var(--accent)" opacity=".18"/>
+            <rect x="11" y="7" width="24" height="16" rx="2.5" fill="var(--accent)" opacity=".55"/>
+            <rect x="15" y="11" width="16" height="12" rx="2" fill="var(--accent)"/></svg>Duo</button>
+        <button class="effect" data-effect="ghost" title="Desktop holds its resting plane">
+          <svg viewBox="0 0 46 30"><path d="M8 27 L38 27 L33 5 L13 5 Z" fill="var(--accent)" opacity=".35"/>
+            <path d="M12 27 L34 27 L31 11 L15 11 Z" fill="var(--accent)"/></svg>Ghost</button>
+        <button class="effect" data-effect="flat" title="Desktop lies back toward the keyboard">
+          <svg viewBox="0 0 46 30"><path d="M5 27 L41 27 L33 17 L13 17 Z" fill="var(--accent)"/>
+            <path d="M13 17 L33 17 L31 6 L15 6 Z" fill="var(--accent)" opacity=".2"/></svg>Flat</button>
+        <button class="effect" data-effect="iris" title="Aperture blades close over the desktop">
+          <svg viewBox="0 0 46 30"><circle cx="23" cy="15" r="12" fill="var(--accent)" opacity=".25"/>
+            <g fill="var(--accent)"><path d="M23 3 L31 9 L25 15 Z"/><path d="M35 15 L29 23 L23 17 Z"/>
+            <path d="M23 27 L15 21 L21 15 Z"/><path d="M11 15 L17 7 L23 13 Z"/></g></svg>Iris</button>
+      </div>
+    </div>
+
+    <div class="section stack">
+      <div>
+        <div class="label">Blur <span class="value" id="blur-v"></span></div>
+        <div class="slider"><input type="range" id="blur" min="0" max="1" step="0.01"></div>
+      </div>
+      <div>
+        <div class="label">Shading <span class="value" id="shadow-v"></span></div>
+        <div class="slider"><input type="range" id="shadow" min="0" max="1" step="0.01"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Starts at <span class="value" id="lidnow"></span></div>
+      <div class="segmented" id="startmode">
+        <button data-mode="auto">Calibrated</button><button data-mode="custom">Custom</button>
+      </div>
+      <div id="custom" style="margin-top:9px">
+        <div class="slider"><input type="range" id="action" min="50" max="120" step="1"><div class="marker" id="marker"></div></div>
+        <div class="row hint" style="margin-top:2px"><span id="action-v"></span><span id="peak"></span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Analysis rate</div>
+      <div class="segmented" id="fps"></div>
+      <div class="label" style="margin-top:10px">Clear when the lid is still</div>
+      <div class="segmented" id="clear">
+        <button data-v="1">1 s</button><button data-v="2">2 s</button><button data-v="3">3 s</button>
+        <button data-v="5">5 s</button><button data-v="0">Never</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="buttons">
+        <button class="button" data-launch="preview">Preview</button>
+        <button class="button" data-launch="calibrate">Calibrate...</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="row"><span class="name">Open at sign-in</span><button class="switch small" id="startup"></button></div>
+      <details id="advanced" style="margin-top:10px">
+        <summary>Advanced</summary>
+        <div class="stack">
+          <div><div class="label">Camera</div>
+            <div class="segmented" id="camera"><button data-v="0">0</button><button data-v="1">1</button>
+              <button data-v="2">2</button><button data-v="3">3</button></div></div>
+          <div class="buttons">
+            <button class="button" data-launch="debug">Debug view</button>
+            <button class="button" data-launch="record">Record 15 s</button>
+          </div>
+          <button class="link" id="folder">Open settings folder</button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="footer" style="border-top:1px solid var(--separator)">
+    <span class="hint">Pause <kbd id="hotkey">Ctrl+Alt+Shift+F</kbd></span>
+    <span class="links">
+      <button class="link" id="about">About</button>
+      <button class="link" id="quit">Quit</button>
+    </span>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+let state = {};
+let dragging = null;           // control being dragged: ignore pushed values for it
+let api = null;
+
+const STATUS = (s) => {
+  if (s.busy) return ["orange", `${s.busy} running...`];
+  if (!s.calibrated) return ["red", "Not calibrated"];
+  if (s.locked) return ["", "Paused"];
+  if ((s.status || "").includes("waiting")) return ["orange", "Waiting for camera"];
+  return ["green", s.lid_deg == null ? "Active" : `Active · lid ${s.lid_deg}°`];
+};
+
+function fill(input) {
+  const p = (input.value - input.min) / (input.max - input.min) * 100;
+  input.style.setProperty("--fill", p + "%");
+}
+
+function update(s) {
+  state = s;
+  const [dot, text] = STATUS(s);
+  $("#dot").className = "dot " + dot;
+  $("#status").textContent = text;
+  $("#power").classList.toggle("on", !s.locked);
+  $("#notice").classList.toggle("on", !s.calibrated && !s.busy);
+  $("#controls").classList.toggle("dim", !s.calibrated);
+  $$(".effect").forEach(b => b.classList.toggle("on", b.dataset.effect === s.effect));
+
+  for (const key of ["blur", "shadow"]) {
+    if (dragging !== key) { $("#" + key).value = s[key]; fill($("#" + key)); }
+    $(`#${key}-v`).textContent = Math.round(s[key] * 100) + "%";
+  }
+
+  const custom = s.action_angle != null;
+  $$("#startmode button").forEach(b => b.classList.toggle("on", (b.dataset.mode === "custom") === custom));
+  $("#custom").style.display = custom ? "" : "none";
+  const action = $("#action");
+  action.min = Math.ceil(s.full_angle + 5);
+  if (dragging !== "action") action.value = custom ? s.action_angle : (s.calibrated_start_deg || 70);
+  fill(action);
+  $("#action-v").textContent = `Starts at ${action.value}°`;
+  $("#peak").textContent = `Full at ${Math.round(s.full_angle)}°`;
+  $("#lidnow").textContent = s.lid_deg == null ? "" :
+    `lid now ${s.lid_deg}°` + (custom ? "" : s.calibrated_start_deg ? ` · starts ${s.calibrated_start_deg}°` : "");
+  const marker = $("#marker");
+  if (s.lid_deg != null) {
+    const lo = +action.min, hi = +action.max;
+    const p = Math.min(1, Math.max(0, (s.lid_deg - lo) / (hi - lo)));
+    marker.style.left = `calc(9px + ${p} * (100% - 18px))`;
+    marker.classList.add("on");
+  } else marker.classList.remove("on");
+
+  const fps = $("#fps");
+  if (fps.children.length !== (s.fps_choices || []).length)
+    fps.innerHTML = s.fps_choices.map(f => `<button data-v="${f}">${f} fps</button>`).join("");
+  $$("#fps button").forEach(b => b.classList.toggle("on", +b.dataset.v === s.camera_fps));
+  $$("#clear button").forEach(b => b.classList.toggle("on", +b.dataset.v === s.clear_after));
+  $$("#camera button").forEach(b => b.classList.toggle("on", +b.dataset.v === s.camera));
+  $("#startup").classList.toggle("on", !!s.startup);
+  $("#hotkey").textContent = s.hotkey || "";
+  $$("[data-launch]").forEach(b => b.disabled = !!s.busy);
+  fit();
+}
+
+function fit() {
+  requestAnimationFrame(() => api && api.fit($("#root").scrollHeight + 2));
+}
+
+function appear(s) {
+  update(s);
+  const root = $("#root");
+  root.classList.remove("appear"); void root.offsetWidth; root.classList.add("appear");
+}
+
+// Slider: send while dragging (throttled), keep pushed state from fighting it.
+function bindSlider(id, key, transform = (v) => +v) {
+  const input = $("#" + id);
+  let last = 0;
+  input.addEventListener("pointerdown", () => dragging = id);
+  input.addEventListener("input", () => {
+    fill(input);
+    if (id === "action") $("#action-v").textContent = `Starts at ${input.value}°`;
+    else $(`#${id}-v`).textContent = Math.round(input.value * 100) + "%";
+    const now = performance.now();
+    if (now - last > 80) { last = now; api.set(key, transform(input.value)); }
+  });
+  input.addEventListener("change", () => { api.set(key, transform(input.value)); dragging = null; });
+}
+
+window.addEventListener("pywebviewready", async () => {
+  api = pywebview.api;
+  $("#power").onclick = () => { state.locked = !state.locked; update(state); api.toggle_lock(); };
+  $$(".effect").forEach(b => b.onclick = () => { state.effect = b.dataset.effect; update(state); api.set("effect", b.dataset.effect); });
+  bindSlider("blur", "blur");
+  bindSlider("shadow", "shadow");
+  bindSlider("action", "action_angle");
+  $$("#startmode button").forEach(b => b.onclick = () => {
+    const custom = b.dataset.mode === "custom";
+    const value = custom ? Math.round(state.calibrated_start_deg || 70) : null;
+    state.action_angle = value; update(state); api.set("action_angle", value);
+  });
+  $("#fps").onclick = (e) => { const v = e.target.dataset.v; if (v) { state.camera_fps = +v; update(state); api.set("camera_fps", +v); } };
+  $("#clear").onclick = (e) => { const v = e.target.dataset.v; if (v) { state.clear_after = +v; update(state); api.set("clear_after", +v); } };
+  $("#camera").onclick = (e) => { const v = e.target.dataset.v; if (v) { state.camera = +v; update(state); api.set("camera", +v); } };
+  $("#startup").onclick = () => { state.startup = !state.startup; update(state); api.startup(state.startup); };
+  $$("[data-launch]").forEach(b => b.onclick = () => api.launch(b.dataset.launch));
+  $("#folder").onclick = () => api.open_folder();
+  $("#about").onclick = () => api.open("about");
+  $("#quit").onclick = () => api.quit_app();
+  $("#advanced").addEventListener("toggle", fit);
+  const s = await api.state();
+  if (s && Object.keys(s).length) update(s);
+});
+
+window.addEventListener("blur", () => api && api.blur());
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && api) api.close("panel"); });
+window.lidfold = { update, appear };
+</script>
+</body>
+</html>

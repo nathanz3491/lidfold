@@ -11,6 +11,8 @@ from .camera import CameraWorker
 from .config import Settings
 from .fold import FoldAnimator, LidTracker, tracker_for
 from .overlay import Overlay
+from .hotkey import Hotkey
+from .ipc import UiBridge
 from .tray import Controller, Tray
 
 STALE_READING = 1.0   # s without a camera reading -> clear the effect
@@ -36,13 +38,19 @@ def _quit_event() -> tuple[object, object]:
 
 
 def run(settings: Settings, verbose: bool = False, tray: bool = True,
-        ctl: Controller | None = None) -> None:
+        ctl: Controller | None = None, ui: bool = True) -> None:
     if _single_instance() is None:
         raise SystemExit("lidfold is already running (see the tray icon).")
     ctl = ctl or Controller(settings)
     icon = Tray(ctl) if tray else None
     if icon:
         icon.start()
+    bridge = UiBridge(ctl, spawn=ui) if tray else None
+    if bridge:
+        ctl.ui = bridge
+        bridge.start()
+    hotkey = Hotkey(ctl.toggle_lock)
+    hotkey.start()
     overlay = Overlay(settings.effect, settings.blur, settings.shadow)
     print("lidfold running - close the lid slowly. Ctrl+C or the tray's Quit to exit.")
 
@@ -63,10 +71,14 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
             if "model" in changes:
                 try:
                     model = load_model()
-                except SystemExit as exc:
+                except SystemExit:
                     model = None
                     ctl.set_status("not calibrated")
-                    ctl.notify(f"{exc} Use Calibrate... in the tray menu.")
+                    if bridge:
+                        bridge.show_welcome()       # first run: walk through calibration
+                    else:
+                        ctl.notify("Not calibrated yet. Use Calibrate... in the tray menu.")
+                ctl.calibrated = model is not None
             want_camera = ctl.active and model is not None
             if camera is not None and (not want_camera or changes & {"camera", "model"}):
                 camera.stop()
@@ -93,6 +105,7 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
             changes = set()
 
             if camera is None:
+                ctl.lid_deg = None
                 overlay.hide()
                 overlay.pump()
                 if model is not None:
@@ -110,10 +123,12 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
             _, reading, stamp = camera.latest()
             if reading is None or now - stamp > STALE_READING:
                 target, clear = 0.0, True
+                ctl.lid_deg = None
                 ctl.set_status("on - waiting for camera")
             elif stamp != last_stamp:
                 last_stamp = stamp
                 target, clear = tracker.update(reading.drive(settings.effect), stamp)
+                ctl.lid_deg = reading.lid_deg
                 if now - last_status >= STATUS_EVERY:
                     ctl.set_status(f"on - lid ~{reading.lid_deg:.0f} deg")
                     last_status = now
@@ -137,6 +152,9 @@ def run(settings: Settings, verbose: bool = False, tray: bool = True,
     finally:
         if camera is not None:
             camera.stop()
+        hotkey.stop()
+        if bridge:
+            bridge.stop()
         overlay.close()
         if icon:
             icon.stop()

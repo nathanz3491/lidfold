@@ -6,6 +6,15 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Added
+- macOS-style UI:
+  - a popover panel on tray left-click: on/off switch, live status, effect
+    cards, sliders, a "Starts at" slider with a live lid-angle marker,
+    segmented controls, Preview and Calibrate;
+  - a pause/resume HUD and Ctrl+Alt+Shift+F hotkey;
+  - banners for results, a first-run Welcome window, and an About window.
+
+  It runs as a companion WebView2 process over an authenticated named pipe,
+  and every UI request is validated.
 - Camera frame rate (10/15/20/30 fps) in the tray, applied live. The camera
   ignores rate requests, so lidfold schedules which frames to analyse and
   grabs the rest without decoding. Measured CPU: 22% at 30 fps, 9% at 10.

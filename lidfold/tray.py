@@ -79,9 +79,24 @@ class Controller:
         self.camera_idle = threading.Event()   # set by the render loop while it holds no camera
         self.busy: str | None = None        # label of a running tool
         self.calibrated_start_deg: float | None = None   # set by the render loop
+        self.lid_deg: float | None = None   # live estimate, set by the render loop
+        self.calibrated = False             # a calibration is loaded
         self.status = "starting"
+        self.startup = startup_enabled()
         self.on_change = lambda: None
-        self.notify = lambda message, title="lidfold": None
+        self.balloon = lambda message, title="lidfold": None   # tray fallback
+        self.ui = None                      # UiBridge when the companion UI runs
+
+    def notify(self, message: str, title: str = "lidfold", kind: str = "info") -> None:
+        """A HUD popup from the companion UI when it runs, else a tray balloon."""
+        if self.ui is not None and self.ui.toast(title, message, kind):
+            return
+        self.balloon(message, title)
+
+    def request_panel(self) -> None:
+        """Tray left-click: open the popover; without the UI, toggle the lock."""
+        if self.ui is None or not self.ui.show_panel():
+            self.toggle_lock()
 
     # ------------------------------------------------------- render loop
     def take_changes(self) -> set[str]:
@@ -105,9 +120,16 @@ class Controller:
             self._changes.update(what)
         self.on_change()
 
-    def toggle_lock(self) -> None:
+    def toggle_lock(self, hud: bool = True) -> None:
         self.settings.locked = not self.settings.locked
         self._change("lock")
+        if hud and self.ui is not None:
+            self.ui.hud("paused" if self.settings.locked else "active")
+
+    def set_startup(self, enabled: bool) -> None:
+        set_startup(enabled)
+        self.startup = startup_enabled()
+        self.on_change()
 
     def set_effect(self, effect: str) -> None:
         self.settings.effect = effect
@@ -158,9 +180,9 @@ class Controller:
                          if l.strip() and "WARN" not in l]
                 tail = lines[-1] if lines else ""
                 if proc.returncode == 0:
-                    self.notify(tail or f"{label} finished.", label)
+                    self.notify(tail or f"{label} finished.", label, "done")
                 else:
-                    self.notify(f"{label} stopped. {tail}", label)
+                    self.notify(f"{label} stopped. {tail}", label, "warning")
             finally:
                 self.busy = None
                 self._change("camera", *(("model",) if reload_model else ()))
@@ -178,7 +200,7 @@ class Tray:
         self.icon = pystray.Icon("lidfold", tray_icon(ctl.settings.locked), self._title(),
                                  menu=self._menu())
         ctl.on_change = self.refresh
-        ctl.notify = self.notify
+        ctl.balloon = self.notify
 
     def _title(self) -> str:
         effect = dict(EFFECTS).get(self.ctl.settings.effect, self.ctl.settings.effect)
@@ -203,8 +225,10 @@ class Tray:
         return pystray.Menu(
             pystray.MenuItem(lambda item: self._title(), None, enabled=False),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Locked (effect and camera off)", lambda icon, item: ctl.toggle_lock(),
-                             checked=lambda item: s.locked, default=True),
+            # Left-click: the popover panel, like a macOS menu-bar extra.
+            pystray.MenuItem("Open lidfold...", lambda icon, item: ctl.request_panel(), default=True),
+            pystray.MenuItem("Paused (effect and camera off)", lambda icon, item: ctl.toggle_lock(),
+                             checked=lambda item: s.locked),
             pystray.MenuItem("Effect", radio([(k, l) for k, l in EFFECTS], lambda: s.effect, ctl.set_effect)),
             pystray.MenuItem("Blur", radio(BLUR, lambda: s.blur, ctl.set_blur)),
             pystray.MenuItem("Shading", radio(SHADOW, lambda: s.shadow, ctl.set_shadow)),
@@ -229,6 +253,8 @@ class Tray:
             pystray.MenuItem("Start with Windows", lambda icon, item: set_startup(not startup_enabled()),
                              checked=lambda item: startup_enabled()),
             pystray.MenuItem("Open settings folder", lambda icon, item: os.startfile(data_dir())),
+            pystray.MenuItem("About lidfold", lambda icon, item: ctl.ui and ctl.ui.open_window("about"),
+                             visible=lambda item: ctl.ui is not None),
             pystray.MenuItem("Quit", lambda icon, item: ctl.quit()),
         )
 
