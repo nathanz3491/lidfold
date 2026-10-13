@@ -136,6 +136,8 @@ How the UI is built:
   - Windows are not transparent: pywebview ignores `hidden=True` for
     transparent windows, so they popped up as empty grey boxes. Each window
     background matches its surface colour instead.
+  - `easy_drag` is off: pywebview lets you drag a frameless window from any
+    point by default, so dragging a slider moved the panel instead.
   - The UI exits with its app, by watching the app's process handle, so a
     stuck UI can't linger as an orphan.
   - Both processes log to `%APPDATA%\lidfold\lidfold.log`.

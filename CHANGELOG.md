@@ -6,6 +6,9 @@ All notable changes to this project are documented here, following
 ## [Unreleased]
 
 ### Fixed
+- Dragging a slider in the panel moved the whole panel instead. pywebview
+  makes frameless windows draggable from any point by default; that is now
+  off for every lidfold window.
 - The panel grew taller with every live update. It measured its
   window-filling container, so the window's own height fed back, adding
   2 px per update. It now measures the content and resizes only on change.

@@ -2,9 +2,9 @@
 
 Started by the app (`lidfold ui`, with the pipe address and key in its
 environment). Windows are web pages in the system WebView2, made frameless
-and transparent, then given Windows 11's acrylic backdrop and rounded
-corners through DWM, so they read as macOS-style vibrancy panels. All
-windows are created hidden at startup so the popover opens instantly.
+and given Windows 11's backdrop and rounded corners through DWM, so they
+read as macOS-style vibrancy panels. All windows are created hidden at
+startup so the popover opens instantly.
 """
 from __future__ import annotations
 
@@ -286,7 +286,9 @@ class Ui:
         # Not transparent: pywebview ignores hidden=True for transparent
         # windows (they appeared 1-3 s after load as empty grey boxes). The
         # surfaces were near-opaque anyway; the window background matches them.
-        common = dict(frameless=True, on_top=True, resizable=False, hidden=True,
+        # easy_drag=False: pywebview makes frameless windows draggable from
+        # any point by default, so dragging a slider moved the whole panel.
+        common = dict(frameless=True, easy_drag=False, on_top=True, resizable=False, hidden=True,
                       js_api=Api(self), background_color=surface_color())
         self.windows["panel"] = webview.create_window("lidfold panel", str(WEB / "panel.html"),
                                                       width=PANEL[0], height=PANEL[1], **common)
@@ -424,7 +426,7 @@ class Ui:
         y = (top + (bottom - top - int(size[1] * s)) // 2) / s
         window = webview.create_window(f"lidfold {name}", str(WEB / f"{name}.html"), width=size[0],
                                        height=size[1], x=int(x), y=int(y), frameless=True,
-                                       resizable=False, js_api=Api(self),
+                                       easy_drag=False, resizable=False, js_api=Api(self),
                                        background_color=surface_color(window=True))
         self.windows[name] = window
 
