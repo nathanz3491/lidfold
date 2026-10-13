@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  .hud { height: 100%; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 10px; background: var(--surface);
+    opacity: 0; transform: scale(0.94); transition: opacity .18s ease, transform .22s cubic-bezier(.2,.9,.3,1.2); }
+  .hud.on { opacity: 1; transform: none; }
+  .glyph { width: 72px; height: 72px; color: var(--text); }
+  .title { font: 600 16px var(--display); }
+  .sub { font-size: 11px; color: var(--text-3); }
+</style>
+</head>
+<body>
+<div class="hud" id="hud">
+  <svg class="glyph" id="glyph" viewBox="0 0 72 72"></svg>
+  <div class="title" id="title"></div>
+  <div class="sub" id="sub"></div>
+</div>
+<script>
+const GLYPHS = {
+  paused: '<rect x="20" y="16" width="11" height="40" rx="3" fill="currentColor"/><rect x="41" y="16" width="11" height="40" rx="3" fill="currentColor"/>',
+  active: '<path d="M14 46 L58 46 L64 18 L8 18 Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M6 52 H66" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M28 33 l6 6 l12 -12" fill="none" stroke="#30d158" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+const TITLES = { paused: "Paused", active: "lidfold on" };
+window.hud = {
+  show(m, hotkey) {
+    document.getElementById("glyph").innerHTML = GLYPHS[m.kind] || GLYPHS.active;
+    document.getElementById("title").textContent = m.title || TITLES[m.kind] || "";
+    document.getElementById("sub").textContent = m.body || hotkey || "";
+    const el = document.getElementById("hud");
+    el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+  },
+  hide() { document.getElementById("hud").classList.remove("on"); },
+};
+</script>
+</body>
+</html>

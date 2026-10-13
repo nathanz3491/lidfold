@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  .banner { height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 14px; cursor: pointer;
+    background: var(--surface);
+    opacity: 0; transform: translateX(16px); transition: opacity .2s ease, transform .28s cubic-bezier(.2,.9,.3,1.1); }
+  .banner.on { opacity: 1; transform: none; }
+  .icon { width: 36px; height: 36px; flex: none; }
+  .text { min-width: 0; flex: 1; }
+  .title { font-weight: 600; display: flex; justify-content: space-between; }
+  .title .when { font-weight: 400; font-size: 11px; color: var(--text-3); }
+  .body { color: var(--text-2); font-size: 12px; overflow: hidden; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .badge { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--accent); }
+  .badge.done { background: var(--green); } .badge.warning { background: var(--orange); }
+</style>
+</head>
+<body>
+<div class="banner" id="banner">
+  <svg class="icon" viewBox="0 0 64 64" aria-hidden="true">
+    <defs><linearGradient id="l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#765cff"/><stop offset="1" stop-color="#4094ff"/></linearGradient></defs>
+    <rect x="2" y="2" width="60" height="60" rx="14" fill="#1c1c22"/>
+    <path d="M17 44 L47 44 L51 14 L13 14 Z" fill="url(#l)"/><path d="M11 46 H53 L56 52 H8 Z" fill="#d6dbe3"/>
+  </svg>
+  <div class="text">
+    <div class="title"><span id="title"></span><span class="when">now</span></div>
+    <div class="body" id="body"></div>
+  </div>
+  <span class="badge" id="badge"></span>
+</div>
+<script>
+window.banner = {
+  show(m) {
+    document.getElementById("title").textContent = m.title || "lidfold";
+    document.getElementById("body").textContent = m.body || "";
+    document.getElementById("badge").className = "badge " + (m.kind || "");
+    const el = document.getElementById("banner");
+    el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+  },
+  hide() { document.getElementById("banner").classList.remove("on"); },
+};
+window.addEventListener("pywebviewready", () => {
+  document.getElementById("banner").onclick = () => pywebview.api.close("banner");
+});
+</script>
+</body>
+</html>
