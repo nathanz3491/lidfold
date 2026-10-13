@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from .config import Settings
+from .config import EFFECT_NAMES, Settings
 
 
 def main() -> None:
@@ -13,8 +13,9 @@ def main() -> None:
                         help="degree of action: estimated lid angle at which the effect starts")
     parser.add_argument("--max-angle", type=float, metavar="DEG",
                         help="max effect angle: estimated lid angle at which the effect is full")
-    parser.add_argument("--effect", choices=["duo", "ghost", "flat", "iris"],
-                        help="fold style: duo / ghost (ports of Mac Duo's), flat, iris")
+    parser.add_argument("--effect", choices=EFFECT_NAMES,
+                        help="fold style: duo / ghost (ports of Mac Duo's), flat, iris, "
+                             "card, genie, fold, glass")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("calibrate", help="label the base edge at a few lid angles and train")
     sub.add_parser("retrain", help="retrain from the saved calibration frames")

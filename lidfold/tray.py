@@ -16,10 +16,9 @@ from pathlib import Path
 
 import pystray
 
-from .config import FPS_CHOICES, Settings, data_dir
+from .config import EFFECTS, FPS_CHOICES, Settings, data_dir
 from .icon import tray_icon
 
-EFFECTS = [("duo", "Duo"), ("ghost", "Ghost"), ("flat", "Flat"), ("iris", "Iris")]
 BLUR = [(0.0, "Off"), (0.35, "Soft"), (0.65, "Mac Duo default"), (0.9, "Strong")]
 SHADOW = [(0.0, "Off"), (0.35, "Light"), (0.65, "Mac Duo default"), (0.9, "Deep")]
 CLEAR = [(1.0, "1 s"), (2.0, "2 s"), (3.0, "3 s"), (5.0, "5 s"), (0.0, "Never")]

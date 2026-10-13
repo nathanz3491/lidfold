@@ -95,7 +95,7 @@ macOS-style popover above the tray that closes when you click elsewhere:
 
 - Header: on/off switch, and a status pill with the live lid angle
   ("Active · lid 72°", "Paused", "Calibration running…").
-- **Effect** cards: Duo, Ghost, Flat, Iris.
+- **Effect** cards: Duo, Ghost, Flat, Iris, Card, Genie, Fold, Glass.
 - **Blur** and **Shading** sliders; changes apply live.
 - **Effect range**: one track from open (left) to closed (right) with two
   handles: where the effect starts and where it is full (the blue one). An
@@ -180,7 +180,7 @@ How the UI is built:
 - `replay <clip.mp4>`: write an annotated video and a CSV trace for tuning.
 - `simulate [--seconds N] [--still]`: preview the effect with a scripted lid
   and no camera.
-- Global `--effect duo|ghost|flat|iris`, `--camera N`, `--action-angle DEG`
+- Global `--effect duo|ghost|flat|iris|card|genie|fold|glass`, `--camera N`, `--action-angle DEG`
   and `--max-angle DEG`. These, plus `clear_after`, `blur` and `shadow`, can
   be saved in `%APPDATA%\lidfold\settings.json`.
 
@@ -289,6 +289,25 @@ leaves the desktop folded.
   Mac Duo does. Defaults follow Mac Duo: perspective 0.7, blur 0.65, shadow 0.65.
 - **flat**: the original look, where the desktop lies down toward the
   keyboard. **iris**: aperture blades.
+- Four effects in Apple's motion language. Each is an exact copy of the
+  desktop at rest, and each runs in under 2 ms of GPU time at 3072×1920.
+  - **card**: like closing an app on iPhone. The desktop shrinks into a card
+    with continuous ("squircle") corners, a hairline rim and a soft shadow.
+    Behind it, the desktop recedes, blurred, more saturated and dimmed, like
+    the wallpaper behind Mission Control.
+  - **genie**: like minimizing a window on a Mac, into the hinge. The sides
+    bend into an S-curved funnel, then the desktop slides down through it.
+    The slide eases in, so it pours away near the end, not by mid-close.
+  - **fold**: the top half folds down over the bottom along the middle, in
+    perspective, like a page. Past edge-on you see its frosted back. A
+    hairline lights the free edge, and that edge casts a shadow that
+    tightens as it lands.
+  - **glass**: liquid glass rises from the hinge and frosts the desktop. Its
+    rim works like the edge of a thick lens: it squeezes in what lies beyond
+    the surface and splits red, green and blue. A specular line catches the
+    light, and the surface ripples as the lid moves. The rim compresses
+    content rather than stretching it: a stretching rim smeared vertical
+    edges into streaks.
 - The desktop is captured with Desktop Duplication (dxcam) and redrawn by a
   GLSL shader in a click-through, topmost window.
 - The window is marked `WDA_EXCLUDEFROMCAPTURE`, so the capture keeps seeing

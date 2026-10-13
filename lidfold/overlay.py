@@ -26,7 +26,6 @@ from . import shaders
 from .fold import GHOST_REFERENCE_DEG, PERSPECTIVE, Visual
 
 WDA_EXCLUDEFROMCAPTURE = 0x11
-EFFECTS = {"duo": 0, "iris": 1, "flat": 2, "ghost": 3}
 
 
 class DesktopSource:
@@ -113,7 +112,7 @@ class Overlay:
         self.visible = False
 
     def set_style(self, effect: str, blur: float, shadow: float) -> None:
-        self.program["effect"] = EFFECTS.get(effect, 0)
+        self.program["effect"] = shaders.EFFECT_INDEX.get(effect, 0)
         self.program["blur"] = blur
         self.program["shadow"] = shadow
 

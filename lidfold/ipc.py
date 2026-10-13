@@ -25,7 +25,7 @@ from multiprocessing.connection import Client, Listener
 
 from . import __version__
 from . import log as logs
-from .config import FPS_CHOICES
+from .config import EFFECT_NAMES, FPS_CHOICES
 
 log = logs.get("bridge")
 
@@ -33,7 +33,6 @@ PIPE_ENV, KEY_ENV, APP_PID_ENV = "LIDFOLD_UI_PIPE", "LIDFOLD_UI_KEY", "LIDFOLD_A
 PUSH_EVERY = 0.2
 CREATE_NO_WINDOW = 0x08000000
 HOTKEY_LABEL = "Ctrl+Alt+Shift+F"
-EFFECTS = ("duo", "ghost", "flat", "iris")
 TOOLS = {
     "calibrate": ("Calibration", ["calibrate"], True),
     "debug": ("Debug view", ["debug"], False),
@@ -181,7 +180,7 @@ class UiBridge:
             c.toggle_lock(hud=False)
         elif cmd == "set":
             key, value = message["key"], message["value"]
-            if key == "effect" and value in EFFECTS:
+            if key == "effect" and value in EFFECT_NAMES:
                 c.set_effect(value)
             elif key == "blur":
                 c.set_blur(_float_in(value, 0.0, 1.0))

@@ -15,13 +15,18 @@ def data_dir() -> Path:
 
 
 FPS_CHOICES = (10, 15, 20, 30)   # camera analysis rates offered in the UI
+# Effects in menu order: (setting value, label). Shader indices live in
+# shaders.EFFECT_INDEX.
+EFFECTS = (("duo", "Duo"), ("ghost", "Ghost"), ("flat", "Flat"), ("iris", "Iris"),
+           ("card", "Card"), ("genie", "Genie"), ("fold", "Fold"), ("glass", "Glass"))
+EFFECT_NAMES = tuple(name for name, _ in EFFECTS)
 
 
 @dataclass
 class Settings:
     camera: int = 0
     camera_fps: int = 30           # frames analysed per second (10/15/20/30)
-    effect: str = "duo"            # duo | ghost | flat | iris
+    effect: str = "duo"            # one of EFFECT_NAMES
     # Lid held still this long while the effect shows -> clear and rebase (0 = never).
     clear_after: float = 2.0
     still_epsilon: float = 0.025

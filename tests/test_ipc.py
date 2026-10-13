@@ -55,6 +55,12 @@ def test_bad_requests_are_rejected_and_change_nothing(bridge, ctl, message):
     assert vars(ctl.settings) == before
 
 
+@pytest.mark.parametrize("effect", ["card", "genie", "fold", "glass"])
+def test_new_effects_are_accepted(bridge, ctl, effect):
+    bridge.handle({"cmd": "set", "key": "effect", "value": effect})
+    assert ctl.settings.effect == effect
+
+
 def test_state_reports_live_values(bridge, ctl):
     ctl.lid_deg = 72.4
     state = bridge.state()

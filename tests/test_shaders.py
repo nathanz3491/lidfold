@@ -65,3 +65,35 @@ def test_ghost_crops_through_the_top_never_shrinks(render):
     # The anchored desktop is magnified past the panel edges: no black
     # surround appears inside the panel (shrinking would leave one).
     assert (out[H // 8: 7 * H // 8, W // 8: 7 * W // 8].sum(axis=2) > 0).mean() > 0.95
+
+
+NEW_EFFECTS = {"card": 4, "genie": 5, "fold": 6, "glass": 7}
+
+
+def test_every_effect_has_a_shader_index():
+    from lidfold.config import EFFECT_NAMES
+    assert set(EFFECT_NAMES) == set(shaders.EFFECT_INDEX)
+    assert all(shaders.EFFECT_INDEX[name] == index for name, index in NEW_EFFECTS.items())
+
+
+@pytest.mark.parametrize("effect", NEW_EFFECTS.values())
+def test_new_effects_are_exact_desktop_at_rest(render, effect):
+    draw, expected = render
+    assert np.mean(draw(effect, 0.0) == expected) > 0.99
+
+
+@pytest.mark.parametrize("effect", NEW_EFFECTS.values())
+def test_new_effects_move_the_desktop_without_blanking_it(render, effect):
+    draw, expected = render
+    out = draw(effect, 0.5).astype(int)
+    assert np.mean(out == expected) < 0.6                  # visibly changed
+    assert out.mean() > 0.3 * expected.mean()              # not a black (NaN) screen
+
+
+def test_glass_leaves_the_desktop_above_its_surface(render):
+    # Regression: exp() of the height above the surface overflowed, and the
+    # mix with the desktop turned the whole upper screen black.
+    draw, expected = render
+    out = draw(NEW_EFFECTS["glass"], 0.3)
+    top = slice(0, int(H * 0.4))                           # image rows are top-first
+    assert np.mean(out[top] == expected[top]) > 0.99

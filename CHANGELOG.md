@@ -35,6 +35,16 @@ All notable changes to this project are documented here, following
   private.
 
 ### Added
+- Four effects in Apple's motion language, in the panel, tray and
+  `--effect`:
+  - **Card**: the iPhone app-close card over a blurred, dimmed desktop;
+  - **Genie**: the Mac minimize funnel, pouring into the hinge;
+  - **Fold**: the top half folds down like a page, showing its frosted back;
+  - **Glass**: liquid glass rises from the hinge, refracting at the rim.
+
+  The existing effects render pixel-identically, and each new one is an
+  exact copy of the desktop at rest. The effect list now lives in one place
+  (`config.EFFECTS`).
 - Max effect angle: the lid angle at which the effect is full, beside the
   degree of action where it starts. Set both on the panel's new **Effect
   range** slider (two handles on one open-to-closed track, with the live
